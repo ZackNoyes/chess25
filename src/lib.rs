@@ -5,7 +5,7 @@ use js_sys::{JsString, Array};
 use wasm_bindgen::{prelude::*};
 use chess::{
     BoardBuilder, Square, Rank, File, ChessMove, Piece, Color, CastleRights,
-    BitBoard, EMPTY, PROMOTION_PIECES
+    BitBoard, EMPTY, PROMOTION_PIECES, ALL_PIECES
 };
 
 // When the `wee_alloc` feature is enabled, use `wee_alloc` as the global
@@ -64,21 +64,26 @@ impl MyBoard {
         let moves = self.moves_from(square);
         let js_moves = Array::new();
         for m in moves {
-            let js_move = Array::new(); // TODO: promotions
+            let js_move = Array::new();
             js_move.push(&m.get_dest().get_file().to_index().into());
             js_move.push(&m.get_dest().get_rank().to_index().into());
+            js_move.push(&
+                if let Some(p) = m.get_promotion() { Some(p.to_index()) }
+                else { None }
+                .into()
+            );
             js_moves.push(&js_move);
         }
         js_moves
     }
 
     pub fn js_apply_move(&mut self,
-        from_file: usize, from_rank: usize, to_file: usize, to_rank: usize
+        from_file: usize, from_rank: usize, to_file: usize, to_rank: usize,
+        promotion: Option<usize>
     ) {
-        // TODO: promotions, and check the move is legal
         let from = MySquare::new(from_file, from_rank);
         let to = MySquare::new(to_file, to_rank);
-        let m = ChessMove::new(from.0, to.0, None);
+        let m = ChessMove::new(from.0, to.0, promotion.map(|i| ALL_PIECES[i]));
         self.apply_move(m);
     }
 
@@ -167,9 +172,9 @@ impl MyBoard {
     }
 
     fn apply_move(&mut self, m: ChessMove) {
+        assert!(self.moves_from(MySquare(m.get_source())).contains(&m));
+
         let (p, c) = self.bb[m.get_source()].unwrap();
-        assert_eq!(c, self.bb.get_side_to_move());
-        assert!(matches!(self.status, Status::InProgress));
 
         // Adjust the castling rights
         let opp = if c == Color::White { Color::Black } else { Color::White };
