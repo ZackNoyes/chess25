@@ -75,7 +75,7 @@ impl MyBoard {
     pub fn js_apply_move(&mut self,
         from_file: usize, from_rank: usize, to_file: usize, to_rank: usize
     ) {
-        // TODO: promotions
+        // TODO: promotions, and check the move is legal
         let from = MySquare::new(from_file, from_rank);
         let to = MySquare::new(to_file, to_rank);
         let m = ChessMove::new(from.0, to.0, None);
