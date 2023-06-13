@@ -186,7 +186,6 @@ impl MySquare {
 
 impl Index<MySquare> for MyBoard {
     type Output = Option<(Piece, Color)>;
-
     fn index(&self, sq: MySquare) -> &Self::Output {
         &self.bb[sq.0]
     }
