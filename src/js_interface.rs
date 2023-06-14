@@ -50,6 +50,26 @@ impl MyBoard {
         js_moves
     }
 
+    /// Returns:
+    /// - `Some(true)` if the move is legal and has a promotion
+    /// - `Some(false)` if the move is legal and does not have a promotion
+    /// - `None` if the move is illegal
+    pub fn js_check_move(&self,
+        from_file: usize, from_rank: usize, to_file: usize, to_rank: usize
+    ) -> Option<bool> {
+        let from = MySquare::new(from_file, from_rank);
+        let to = MySquare::new(to_file, to_rank);
+        let m = ChessMove::new(from.0, to.0, None);
+        let mp = ChessMove::new(from.0, to.0, Some(ALL_PIECES[1]));
+        if self.moves_from(from).contains(&m) {
+            Some(false)
+        } else if self.moves_from(from).contains(&mp) {
+            Some(true)
+        } else {
+            None
+        }
+    }
+
     pub fn js_apply_move(&mut self,
         from_file: usize, from_rank: usize, to_file: usize, to_rank: usize,
         promotion: Option<usize>
