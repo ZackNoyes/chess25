@@ -86,7 +86,7 @@ impl MyBoard {
         moves
     }
 
-    pub(crate) fn apply_move(&mut self, m: ChessMove) {
+    pub(crate) fn apply_move(&mut self, m: ChessMove) { // TODO: Fix castling
         assert!(self.moves_from(MySquare(m.get_source())).contains(&m));
 
         let (p, c) = self.bb[m.get_source()].unwrap();

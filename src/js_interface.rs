@@ -80,9 +80,15 @@ impl MyBoard {
         self.apply_move(m);
     }
 
-    pub fn js_side_to_move(&self) -> JsString {
+    pub fn js_get_side_to_move(&self) -> JsString {
         if self.bb.get_side_to_move().to_index() == 0 { "white".into() }
         else { "black".into() }
+    }
+
+    pub fn js_switch_side_to_move(&mut self) {
+        let opp = if self.bb.get_side_to_move() == Color::White { Color::Black }
+        else { Color::White };
+        self.bb.side_to_move(opp);
     }
 
     pub fn js_status(&self) -> JsString {
