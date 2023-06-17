@@ -86,7 +86,7 @@ impl MyBoard {
         moves
     }
 
-    pub(crate) fn apply_move(&mut self, m: ChessMove) { // TODO: Fix castling
+    pub(crate) fn apply_move(&mut self, m: ChessMove) {
         assert!(self.moves_from(MySquare(m.get_source())).contains(&m));
 
         let (p, c) = self.bb[m.get_source()].unwrap();
@@ -116,6 +116,27 @@ impl MyBoard {
         // Apply the move
         self.bb.piece(m.get_dest(), p, c);
         self.bb.clear_square(m.get_source());
+
+        // Handle castling
+        if matches!(p, Piece::King) && matches!(m.get_source().get_file(), File::E) {
+            if m.get_dest().get_file() == File::G {
+                self.bb.piece(
+                    if c == Color::White { Square::F1 } else { Square::F8 },
+                    Piece::Rook, c
+                );
+                self.bb.clear_square(
+                    if c == Color::White { Square::H1 } else { Square::H8 }
+                );
+            } else if m.get_dest().get_file() == File::C {
+                self.bb.piece(
+                    if c == Color::White { Square::D1 } else { Square::D8 },
+                    Piece::Rook, c
+                );
+                self.bb.clear_square(
+                    if c == Color::White { Square::A1 } else { Square::A8 }
+                );
+            }
+        }
 
         // Promote
         if let Some(p) = m.get_promotion() {
