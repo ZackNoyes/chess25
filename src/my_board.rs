@@ -160,6 +160,17 @@ impl MyBoard {
             }
         }
 
+        // Detect no moves draw
+        // TODO: Make this interact properly with the randomness
+        if self.all_moves().is_empty() && matches!(self.status, Status::InProgress) {
+            self.status = Status::Draw;
+        }
+
+    }
+
+    fn all_moves(&self) -> Vec<ChessMove> {
+        MySquare::all_squares().iter().map(|&sq| self.moves_from(sq))
+            .collect::<Vec<Vec<ChessMove>>>().concat()
     }
 
     // TODO: restructure BitBoard usage for efficiency
