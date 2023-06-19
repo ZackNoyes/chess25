@@ -1,18 +1,17 @@
 
 use wasm_bindgen::prelude::*;
 use super::my_board::{MyBoard, MySquare, Status};
-use chess::{BoardBuilder, ChessMove, Color, ALL_PIECES};
+use chess::{ChessMove, Color, ALL_PIECES};
 use js_sys::{Array, JsString};
 
 #[wasm_bindgen]
 impl MyBoard {
-    pub fn initial_board() -> MyBoard {
+
+    pub fn js_initial_board(white_starts: bool) -> MyBoard {
         crate::utils::set_panic_hook();
-        MyBoard {
-            bb: BoardBuilder::default(),
-            dead_moves: 0,
-            status: Status::InProgress
-        }
+        MyBoard::initial_board(
+            if white_starts { Color::White } else { Color::Black }
+        )
     }
 
     pub fn js_piece(&self, file: usize, rank: usize) -> Option<JsString> {
@@ -80,15 +79,13 @@ impl MyBoard {
         self.apply_move(m);
     }
 
+    pub fn js_apply_bonus(&mut self, is_bonus: bool) {
+        self.apply_bonus(is_bonus);
+    }
+
     pub fn js_get_side_to_move(&self) -> JsString {
         if self.bb.get_side_to_move().to_index() == 0 { "white".into() }
         else { "black".into() }
-    }
-
-    pub fn js_switch_side_to_move(&mut self) {
-        let opp = if self.bb.get_side_to_move() == Color::White { Color::Black }
-        else { Color::White };
-        self.bb.side_to_move(opp);
     }
 
     pub fn js_status(&self) -> JsString {

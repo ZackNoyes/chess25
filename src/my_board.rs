@@ -10,7 +10,8 @@ use chess::{
 pub struct MyBoard {
     pub(crate) bb: BoardBuilder,
     pub(crate) dead_moves: u8,
-    pub(crate) status: Status
+    pub(crate) status: Status,
+    awaiting_bonus: bool,
 }
 
 #[derive(Copy, Clone)]
@@ -24,6 +25,17 @@ pub enum Status {
 }
 
 impl MyBoard {
+
+    pub(crate) fn initial_board(starting_color: Color) -> MyBoard {
+        let mut board = MyBoard {
+            bb: BoardBuilder::default(),
+            dead_moves: 0,
+            status: Status::InProgress,
+            awaiting_bonus: false
+        };
+        board.bb.side_to_move(starting_color);
+        board
+    }
 
     pub(crate) fn moves_from(&self, sq: MySquare) -> Vec<ChessMove> {
 
@@ -87,6 +99,7 @@ impl MyBoard {
     }
 
     pub(crate) fn apply_move(&mut self, m: ChessMove) {
+        assert!(!self.awaiting_bonus); self.awaiting_bonus = true;
         assert!(self.moves_from(MySquare(m.get_source())).contains(&m));
 
         let (p, c) = self.bb[m.get_source()].unwrap();
@@ -111,6 +124,21 @@ impl MyBoard {
         // Check if the king was taken for a win
         if  matches!(self.bb[m.get_dest()], Some((Piece::King, _))) {
             self.status = Status::Win(c);
+        }
+
+        // Detect 50 non-pawn non-capture moves for a draw
+        if
+            matches!(self.bb[m.get_dest()], Some(_))
+            || matches!(p, Piece::Pawn)
+        {
+            self.dead_moves = 0;
+        } else {
+            self.dead_moves += 1;
+            assert!(self.dead_moves <= 50);
+            if self.dead_moves == 50 {
+                self.status = Status::Draw;
+            }
+            web_sys::console::log_1(&format!("dead moves: {}", self.dead_moves).into());
         }
 
         // Apply the move
@@ -146,22 +174,19 @@ impl MyBoard {
         // Switch turns
         self.bb.side_to_move(opp);
 
-        // Detect 50 non-pawn non-capture moves for a draw
-        if
-            matches!(self.bb[m.get_dest()], Some(_))
-            || matches!(p, Piece::Pawn)
-        {
-            self.dead_moves = 0;
-        } else {
-            self.dead_moves += 1;
-            assert!(self.dead_moves <= 50);
-            if self.dead_moves == 50 {
-                self.status = Status::Draw;
-            }
+    }
+
+    pub(crate) fn apply_bonus(&mut self, is_bonus: bool) {
+        assert!(self.awaiting_bonus); self.awaiting_bonus = false;
+
+        if is_bonus {
+            let opp = if self.bb.get_side_to_move() == Color::White {
+                Color::Black
+            } else { Color::White };
+            self.bb.side_to_move(opp);
         }
 
         // Detect no moves draw
-        // TODO: Make this interact properly with the randomness
         if self.all_moves().is_empty() && matches!(self.status, Status::InProgress) {
             self.status = Status::Draw;
         }

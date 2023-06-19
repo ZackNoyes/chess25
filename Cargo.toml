@@ -25,6 +25,7 @@ console_error_panic_hook = { version = "0.1.6", optional = true }
 wee_alloc = { version = "0.4.5", optional = true }
 js-sys = "0.3.63"
 chess = "3.2.0"
+web-sys = { version = "0.3.64", features = ["console"] }
 
 [dev-dependencies]
 wasm-bindgen-test = "0.3.13"
