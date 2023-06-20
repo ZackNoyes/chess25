@@ -1,6 +1,6 @@
 
 use wasm_bindgen::prelude::*;
-use super::my_board::{MyBoard, MySquare, Status};
+use crate::my_board::{MyBoard, MySquare, Status};
 use chess::{ChessMove, Color, ALL_PIECES};
 use js_sys::{Array, JsString};
 
