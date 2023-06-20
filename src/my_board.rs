@@ -1,6 +1,5 @@
 
 use std::ops::Index;
-use wasm_bindgen::prelude::*;
 use chess::{
     BoardBuilder, Square, Rank, File, ChessMove, Piece, Color, CastleRights,
     BitBoard, EMPTY, PROMOTION_PIECES
@@ -8,7 +7,6 @@ use chess::{
 
 use crate::engine::Engine;
 
-#[wasm_bindgen]
 #[derive(Copy, Clone)]
 pub struct MyBoard {
     bb: BoardBuilder,
