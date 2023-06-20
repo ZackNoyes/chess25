@@ -84,12 +84,12 @@ impl MyBoard {
     }
 
     pub fn js_get_side_to_move(&self) -> JsString {
-        if self.bb.get_side_to_move().to_index() == 0 { "white".into() }
+        if self.get_bb().get_side_to_move().to_index() == 0 { "white".into() }
         else { "black".into() }
     }
 
     pub fn js_status(&self) -> JsString {
-        self.status.into()
+        self.get_status().into()
     }
 }
 

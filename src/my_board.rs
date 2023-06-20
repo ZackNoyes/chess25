@@ -6,11 +6,13 @@ use chess::{
     BitBoard, EMPTY, PROMOTION_PIECES
 };
 
+use crate::engine::Evaluator;
+
 #[wasm_bindgen]
 pub struct MyBoard {
-    pub(crate) bb: BoardBuilder,
-    pub(crate) dead_moves: u8,
-    pub(crate) status: Status,
+    bb: BoardBuilder,
+    dead_moves: u8,
+    status: Status,
     awaiting_bonus: bool,
 }
 
@@ -26,7 +28,15 @@ pub enum Status {
 
 impl MyBoard {
 
-    pub(crate) fn initial_board(starting_color: Color) -> MyBoard {
+    pub fn get_bb(&self) -> &BoardBuilder {
+        &self.bb
+    }
+
+    pub fn get_status(&self) -> Status {
+        self.status
+    }
+
+    pub fn initial_board(starting_color: Color) -> MyBoard {
         let mut board = MyBoard {
             bb: BoardBuilder::default(),
             dead_moves: 0,
@@ -37,8 +47,9 @@ impl MyBoard {
         board
     }
 
-    pub(crate) fn moves_from(&self, sq: MySquare) -> Vec<ChessMove> {
-
+    pub fn moves_from(&self, sq: MySquare) -> Vec<ChessMove> {
+        assert!(!self.awaiting_bonus, "Tried to request move from board awaiting bonus");
+        
         if !matches!(self.status, Status::InProgress) { return Vec::new(); }
         if self[sq].is_none() { return Vec::new(); }
         let (piece, color) = self[sq].unwrap();
@@ -98,9 +109,9 @@ impl MyBoard {
         moves
     }
 
-    pub(crate) fn apply_move(&mut self, m: ChessMove) {
-        assert!(!self.awaiting_bonus); self.awaiting_bonus = true;
+    pub fn apply_move(&mut self, m: ChessMove) {
         assert!(self.moves_from(MySquare(m.get_source())).contains(&m));
+        assert!(!self.awaiting_bonus); self.awaiting_bonus = true;
 
         let (p, c) = self.bb[m.get_source()].unwrap();
 
@@ -138,7 +149,6 @@ impl MyBoard {
             if self.dead_moves == 50 {
                 self.status = Status::Draw;
             }
-            web_sys::console::log_1(&format!("dead moves: {}", self.dead_moves).into());
         }
 
         // Apply the move
@@ -176,7 +186,7 @@ impl MyBoard {
 
     }
 
-    pub(crate) fn apply_bonus(&mut self, is_bonus: bool) {
+    pub fn apply_bonus(&mut self, is_bonus: bool) {
         assert!(self.awaiting_bonus); self.awaiting_bonus = false;
 
         if is_bonus {
@@ -190,6 +200,12 @@ impl MyBoard {
         if self.all_moves().is_empty() && matches!(self.status, Status::InProgress) {
             self.status = Status::Draw;
         }
+
+        web_sys::console::log_1(
+            &format!(
+                "Move finished. Static evaluation: {}",
+                crate::engine::DefaultEvaluator::default().evaluate(&self)
+            ).into());
 
     }
 
@@ -218,13 +234,13 @@ impl MyBoard {
 }
 
 impl MySquare {
-    pub(crate) fn new(file: usize, rank: usize) -> MySquare {
+    pub fn new(file: usize, rank: usize) -> MySquare {
         MySquare(Square::make_square(
             Rank::from_index(rank),
             File::from_index(file)
         ))
     }
-    fn all_squares() -> [MySquare; 64] {
+    pub fn all_squares() -> [MySquare; 64] {
         chess::ALL_SQUARES.map(|s| MySquare(s))
     }
     fn kingside_castle_square(color: Color) -> MySquare {
