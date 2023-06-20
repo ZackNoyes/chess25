@@ -6,9 +6,10 @@ use chess::{
     BitBoard, EMPTY, PROMOTION_PIECES
 };
 
-use crate::engine::Evaluator;
+use crate::engine::Engine;
 
 #[wasm_bindgen]
+#[derive(Copy, Clone)]
 pub struct MyBoard {
     bb: BoardBuilder,
     dead_moves: u8,
@@ -204,12 +205,12 @@ impl MyBoard {
         web_sys::console::log_1(
             &format!(
                 "Move finished. Static evaluation: {}",
-                crate::engine::DefaultEvaluator::default().evaluate(&self)
+                crate::engine::default_engine().evaluate(&self)
             ).into());
 
     }
 
-    fn all_moves(&self) -> Vec<ChessMove> {
+    pub fn all_moves(&self) -> Vec<ChessMove> {
         MySquare::all_squares().iter().map(|&sq| self.moves_from(sq))
             .collect::<Vec<Vec<ChessMove>>>().concat()
     }
