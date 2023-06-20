@@ -7,7 +7,7 @@ pub struct Greedy {
 }
 
 impl Engine for Greedy {
-    fn new(static_evaluator: impl StaticEvaluator + 'static) -> Self {
+    fn default(static_evaluator: impl StaticEvaluator + 'static) -> Self {
         Greedy { static_evaluator: Box::new(static_evaluator) }
     }
 

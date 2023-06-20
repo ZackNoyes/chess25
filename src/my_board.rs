@@ -1,5 +1,6 @@
 
 use std::ops::Index;
+use wasm_bindgen::prelude::*;
 use chess::{
     BoardBuilder, Square, Rank, File, ChessMove, Piece, Color, CastleRights,
     BitBoard, EMPTY, PROMOTION_PIECES
@@ -199,12 +200,6 @@ impl MyBoard {
         if self.all_moves().is_empty() && matches!(self.status, Status::InProgress) {
             self.status = Status::Draw;
         }
-
-        web_sys::console::log_1(
-            &format!(
-                "Move finished. Static evaluation: {}",
-                crate::engine::default_engine().evaluate(&self)
-            ).into());
 
     }
 
