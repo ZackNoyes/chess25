@@ -21,7 +21,7 @@ pub trait Engine {
             if matches!(board.get_bb().get_side_to_move(), Color::White) { 1.0 }
             else { -1.0 };
 
-        board.all_moves().into_iter().map(|mv| {
+        let move_evaluations = board.all_moves().into_iter().map(|mv| {
             let mut new_board = *board; new_board.apply_move(mv);
             let mut bonus_board = new_board; bonus_board.apply_bonus(true);
             let mut no_bonus_board = new_board; no_bonus_board.apply_bonus(false);
@@ -29,10 +29,36 @@ pub trait Engine {
                 CHANCE_OF_BONUS * self.evaluate(&bonus_board)
                 + CHANCE_OF_NO_BONUS * self.evaluate(&no_bonus_board);
             (mv, multiplier * evaluation)
-        }).max_by(|(_, a), (_, b)| a.partial_cmp(b).unwrap()).unwrap().0
+        });
+
+        // This can be made more efficient, but this helps with debugging
+        // The inefficiency is only at the top layer
+
+        let mut move_evaluations: Vec<_> = move_evaluations.collect();
+        move_evaluations.sort_by(|(_, a), (_, b)| b.partial_cmp(a).unwrap());
+
+        let mut log_string = String::from("Top three moves: \n");
+
+        for i in 0..3 {
+            log_string.push_str(
+                &format!(
+                    "{}: ({:?}, {:?}) to ({:?}, {:?}) with score {}\n",
+                    i,
+                    move_evaluations[i].0.get_source().get_file(),
+                    move_evaluations[i].0.get_source().get_rank(),
+                    move_evaluations[i].0.get_dest().get_file(),
+                    move_evaluations[i].0.get_dest().get_rank(),
+                    move_evaluations[i].1
+                )
+            );
+        }
+
+        web_sys::console::log_1(&log_string.into());
+
+        move_evaluations[0].0
     }
 }
 
 pub fn default_engine() -> impl Engine {
-    minimax::Minimax::new(proportion_count::ProportionCount::default(), 2)
+    minimax::Minimax::new(proportion_count::ProportionCount::default(), 3)
 }
