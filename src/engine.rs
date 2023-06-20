@@ -48,7 +48,7 @@ pub trait Engine {
                     move_evaluations[i].0.get_source().get_rank(),
                     move_evaluations[i].0.get_dest().get_file(),
                     move_evaluations[i].0.get_dest().get_rank(),
-                    move_evaluations[i].1
+                    -move_evaluations[i].1
                 )
             );
         }
