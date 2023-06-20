@@ -1,5 +1,6 @@
 
 use chess::Color;
+use crate::{CHANCE_OF_BONUS, CHANCE_OF_NO_BONUS};
 use crate::my_board::{MyBoard, Status};
 use super::{Engine, StaticEvaluator};
 
@@ -29,8 +30,8 @@ impl Minimax {
             let mut bonus_board = new_board; bonus_board.apply_bonus(true);
             let mut no_bonus_board = new_board; no_bonus_board.apply_bonus(false);
             
-            0.25 * self.evaluate_with_cutoff(&bonus_board, cutoff - 1)
-            + 0.75 * self.evaluate_with_cutoff(&no_bonus_board, cutoff - 1)
+            CHANCE_OF_BONUS * self.evaluate_with_cutoff(&bonus_board, cutoff - 1)
+            + CHANCE_OF_NO_BONUS * self.evaluate_with_cutoff(&no_bonus_board, cutoff - 1)
         });
 
         if matches!(board.get_bb().get_side_to_move(), Color::White) {

@@ -6,6 +6,7 @@ mod evaluator;
 mod proportion_count;
 
 use chess::{ChessMove, Color};
+use crate::{CHANCE_OF_BONUS, CHANCE_OF_NO_BONUS};
 use crate::my_board::MyBoard;
 use evaluator::StaticEvaluator;
 
@@ -25,8 +26,8 @@ pub trait Engine {
             let mut bonus_board = new_board; bonus_board.apply_bonus(true);
             let mut no_bonus_board = new_board; no_bonus_board.apply_bonus(false);
             let evaluation =
-                0.25 * self.evaluate(&bonus_board)
-                + 0.75 * self.evaluate(&no_bonus_board);
+                CHANCE_OF_BONUS * self.evaluate(&bonus_board)
+                + CHANCE_OF_NO_BONUS * self.evaluate(&no_bonus_board);
             (mv, multiplier * evaluation)
         }).max_by(|(_, a), (_, b)| a.partial_cmp(b).unwrap()).unwrap().0
     }
