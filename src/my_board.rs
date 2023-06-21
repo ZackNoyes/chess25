@@ -201,17 +201,18 @@ impl MyBoard {
             Color::White => {
                 self.white_pieces &= !BitBoard::from_square(src);
                 self.white_pieces |= BitBoard::from_square(dst);
-                self.black_pieces &= !BitBoard::from_square(src);
+                self.black_pieces &= !BitBoard::from_square(dst);
             }
             Color::Black => {
                 self.black_pieces &= !BitBoard::from_square(src);
                 self.black_pieces |= BitBoard::from_square(dst);
-                self.white_pieces &= !BitBoard::from_square(src);
+                self.white_pieces &= !BitBoard::from_square(dst);
             }
         }
     }
 
-    pub fn apply_bonus(&mut self, is_bonus: bool) {
+    /// Applies the bonus move but doesn't check for a draw
+    pub fn apply_bonus_unchecked(&mut self, is_bonus: bool) {
         assert!(self.awaiting_bonus); self.awaiting_bonus = false;
 
         if is_bonus {
@@ -220,12 +221,15 @@ impl MyBoard {
             } else { Color::White };
             self.board.side_to_move(opp);
         }
+    }
+
+    pub fn apply_bonus(&mut self, is_bonus: bool) {
+        self.apply_bonus_unchecked(is_bonus);
 
         // Detect no moves draw
         if self.all_moves().is_empty() && matches!(self.status, Status::InProgress) {
             self.status = Status::Draw;
         }
-
     }
 
     pub fn all_moves(&self) -> Vec<ChessMove> {

@@ -37,17 +37,15 @@ pub trait Engine {
         let mut move_evaluations: Vec<_> = move_evaluations.collect();
         move_evaluations.sort_by(|(_, a), (_, b)| b.partial_cmp(a).unwrap());
 
-        let mut log_string = String::from("Top three moves: \n");
+        let mut log_string = String::from("Top three moves considered: \n");
 
         for i in 0..3 {
             log_string.push_str(
                 &format!(
-                    "{}: ({:?}, {:?}) to ({:?}, {:?}) with score {}\n",
+                    "{}: {} to {} with score {}\n",
                     i,
-                    move_evaluations[i].0.get_source().get_file(),
-                    move_evaluations[i].0.get_source().get_rank(),
-                    move_evaluations[i].0.get_dest().get_file(),
-                    move_evaluations[i].0.get_dest().get_rank(),
+                    move_evaluations[i].0.get_source(),
+                    move_evaluations[i].0.get_dest(),
                     -move_evaluations[i].1
                 )
             );
@@ -60,5 +58,5 @@ pub trait Engine {
 }
 
 pub fn default_engine() -> impl Engine {
-    minimax::Minimax::new(proportion_count::ProportionCount::default(), 3)
+    minimax::Minimax::new(proportion_count::ProportionCount::default(), 4)
 }

@@ -27,8 +27,19 @@ impl Minimax {
         let scores = board.all_moves().into_iter().map(|mv| {
 
             let mut new_board = *board; new_board.apply_move(mv);
-            let mut bonus_board = new_board; bonus_board.apply_bonus(true);
-            let mut no_bonus_board = new_board; no_bonus_board.apply_bonus(false);
+
+            let mut bonus_board = new_board;
+            let mut no_bonus_board = new_board;
+
+            // At the last layer, we skip the draw check, since it's really
+            // rare and also the most expensive part
+            if cutoff == 1 {
+                bonus_board.apply_bonus_unchecked(true);
+                no_bonus_board.apply_bonus_unchecked(false);
+            } else {
+                bonus_board.apply_bonus(true);
+                no_bonus_board.apply_bonus(false);
+            }
             
             CHANCE_OF_BONUS * self.evaluate_with_cutoff(&bonus_board, cutoff - 1)
             + CHANCE_OF_NO_BONUS * self.evaluate_with_cutoff(&no_bonus_board, cutoff - 1)
