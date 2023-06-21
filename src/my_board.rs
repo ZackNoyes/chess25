@@ -165,11 +165,7 @@ impl MyBoard {
         // Apply the move
         self.board.piece(m.get_dest(), p, c);
         self.board.clear_square(m.get_source());
-
-        // Apply the move to the bitboards
-        self.white_pieces &= !BitBoard::from_square(m.get_source());
-        self.white_pieces |= BitBoard::from_square(m.get_dest());
-        self.black_pieces &= !BitBoard::from_square(m.get_source());
+        self.update_bitboards(c, m.get_source(), m.get_dest());
 
         // Handle castling
         if matches!(p, Piece::King) && matches!(m.get_source().get_file(), File::E) {
@@ -184,9 +180,7 @@ impl MyBoard {
             if let (Some(src), Some(dst)) = (src, dst) {
                 self.board.piece(dst, Piece::Rook, c);
                 self.board.clear_square(src);
-                self.white_pieces &= !BitBoard::from_square(src);
-                self.white_pieces |= BitBoard::from_square(dst);
-                self.black_pieces &= !BitBoard::from_square(src);
+                self.update_bitboards(c, src, dst);
             }
         }
 
@@ -198,6 +192,23 @@ impl MyBoard {
         // Switch turns
         self.board.side_to_move(opp);
 
+    }
+
+    /// Updates the internal bitboards to reflect a move by the color `c`
+    /// from `src` to `dst`.
+    fn update_bitboards(&mut self, c: Color, src: Square, dst: Square) {
+        match c {
+            Color::White => {
+                self.white_pieces &= !BitBoard::from_square(src);
+                self.white_pieces |= BitBoard::from_square(dst);
+                self.black_pieces &= !BitBoard::from_square(src);
+            }
+            Color::Black => {
+                self.black_pieces &= !BitBoard::from_square(src);
+                self.black_pieces |= BitBoard::from_square(dst);
+                self.white_pieces &= !BitBoard::from_square(src);
+            }
+        }
     }
 
     pub fn apply_bonus(&mut self, is_bonus: bool) {
