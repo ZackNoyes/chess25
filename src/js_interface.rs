@@ -85,7 +85,7 @@ impl JSInterface {
     }
 
     pub fn js_get_side_to_move(&self) -> JsString {
-        if self.board.get_bb().get_side_to_move().to_index() == 0 { "white".into() }
+        if self.board.get_board().get_side_to_move().to_index() == 0 { "white".into() }
         else { "black".into() }
     }
 

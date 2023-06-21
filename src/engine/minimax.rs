@@ -34,7 +34,7 @@ impl Minimax {
             + CHANCE_OF_NO_BONUS * self.evaluate_with_cutoff(&no_bonus_board, cutoff - 1)
         });
 
-        if matches!(board.get_bb().get_side_to_move(), Color::White) {
+        if matches!(board.get_board().get_side_to_move(), Color::White) {
             scores.max_by(|a, b| a.partial_cmp(b).unwrap()).unwrap()
         } else {
             scores.min_by(|a, b| a.partial_cmp(b).unwrap()).unwrap()

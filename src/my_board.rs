@@ -7,10 +7,12 @@ use chess::{
 
 #[derive(Copy, Clone)]
 pub struct MyBoard {
-    bb: BoardBuilder,
+    board: BoardBuilder,
     dead_moves: u8,
     status: Status,
     awaiting_bonus: bool,
+    white_pieces: BitBoard,
+    black_pieces: BitBoard,
 }
 
 #[derive(Copy, Clone)]
@@ -25,8 +27,8 @@ pub enum Status {
 
 impl MyBoard {
 
-    pub fn get_bb(&self) -> &BoardBuilder {
-        &self.bb
+    pub fn get_board(&self) -> &BoardBuilder {
+        &self.board
     }
 
     pub fn get_status(&self) -> Status {
@@ -34,13 +36,25 @@ impl MyBoard {
     }
 
     pub fn initial_board(starting_color: Color) -> MyBoard {
+        let board = BoardBuilder::default();
+        let mut white_pieces = EMPTY;
+        let mut black_pieces = EMPTY;
+        for sq in chess::ALL_SQUARES {
+            match board[sq] {
+                Some((_, Color::White)) => white_pieces |= BitBoard::from_square(sq),
+                Some((_, Color::Black)) => black_pieces |= BitBoard::from_square(sq),
+                _ => (),
+            }
+        }
         let mut board = MyBoard {
-            bb: BoardBuilder::default(),
+            board,
             dead_moves: 0,
             status: Status::InProgress,
-            awaiting_bonus: false
+            awaiting_bonus: false,
+            white_pieces,
+            black_pieces,
         };
-        board.bb.side_to_move(starting_color);
+        board.board.side_to_move(starting_color);
         board
     }
 
@@ -51,7 +65,7 @@ impl MyBoard {
         if self[sq].is_none() { return Vec::new(); }
         let (piece, color) = self[sq].unwrap();
 
-        if color != self.bb.get_side_to_move() { return Vec::new(); }
+        if color != self.board.get_side_to_move() { return Vec::new(); }
 
         let mut moves = Vec::new();
 
@@ -75,7 +89,7 @@ impl MyBoard {
         // Add the castling moves
         if matches!(piece, Piece::King) {
             if
-                self.bb.get_castle_rights(color).has_kingside()
+                self.board.get_castle_rights(color).has_kingside()
                 && all & CastleRights::Both.kingside_squares(color) == EMPTY
             {
                 moves.push(ChessMove::new(
@@ -83,7 +97,7 @@ impl MyBoard {
                 ));
             }
             if
-                self.bb.get_castle_rights(color).has_queenside()
+                self.board.get_castle_rights(color).has_queenside()
                 && all & CastleRights::Both.queenside_squares(color) == EMPTY
             {
                 moves.push(ChessMove::new(
@@ -110,33 +124,33 @@ impl MyBoard {
         assert!(self.moves_from(MySquare(m.get_source())).contains(&m));
         assert!(!self.awaiting_bonus); self.awaiting_bonus = true;
 
-        let (p, c) = self.bb[m.get_source()].unwrap();
+        let (p, c) = self.board[m.get_source()].unwrap();
 
         // Adjust the castling rights
         let opp = if c == Color::White { Color::Black } else { Color::White };
         // Remove castling rights based on piece moved
-        self.bb.castle_rights(
+        self.board.castle_rights(
             c,
-            self.bb.get_castle_rights(c).remove(
+            self.board.get_castle_rights(c).remove(
                 CastleRights::square_to_castle_rights(c, m.get_source())
             )
         );
         // Remove opponent castling rights based on piece taken
-        self.bb.castle_rights(
+        self.board.castle_rights(
             opp,
-            self.bb.get_castle_rights(opp).remove(
+            self.board.get_castle_rights(opp).remove(
                 CastleRights::square_to_castle_rights(opp, m.get_dest())
             )
         );
 
         // Check if the king was taken for a win
-        if  matches!(self.bb[m.get_dest()], Some((Piece::King, _))) {
+        if  matches!(self.board[m.get_dest()], Some((Piece::King, _))) {
             self.status = Status::Win(c);
         }
 
         // Detect 50 non-pawn non-capture moves for a draw
         if
-            matches!(self.bb[m.get_dest()], Some(_))
+            matches!(self.board[m.get_dest()], Some(_))
             || matches!(p, Piece::Pawn)
         {
             self.dead_moves = 0;
@@ -149,37 +163,40 @@ impl MyBoard {
         }
 
         // Apply the move
-        self.bb.piece(m.get_dest(), p, c);
-        self.bb.clear_square(m.get_source());
+        self.board.piece(m.get_dest(), p, c);
+        self.board.clear_square(m.get_source());
+
+        // Apply the move to the bitboards
+        self.white_pieces &= !BitBoard::from_square(m.get_source());
+        self.white_pieces |= BitBoard::from_square(m.get_dest());
+        self.black_pieces &= !BitBoard::from_square(m.get_source());
 
         // Handle castling
         if matches!(p, Piece::King) && matches!(m.get_source().get_file(), File::E) {
+            let mut src = None; let mut dst = None;
             if m.get_dest().get_file() == File::G {
-                self.bb.piece(
-                    if c == Color::White { Square::F1 } else { Square::F8 },
-                    Piece::Rook, c
-                );
-                self.bb.clear_square(
-                    if c == Color::White { Square::H1 } else { Square::H8 }
-                );
+                src = Some(if c == Color::White { Square::H1 } else { Square::H8 });
+                dst = Some(if c == Color::White { Square::F1 } else { Square::F8 });
             } else if m.get_dest().get_file() == File::C {
-                self.bb.piece(
-                    if c == Color::White { Square::D1 } else { Square::D8 },
-                    Piece::Rook, c
-                );
-                self.bb.clear_square(
-                    if c == Color::White { Square::A1 } else { Square::A8 }
-                );
+                src = Some(if c == Color::White { Square::A1 } else { Square::A8 });
+                dst = Some(if c == Color::White { Square::D1 } else { Square::D8 });
+            }
+            if let (Some(src), Some(dst)) = (src, dst) {
+                self.board.piece(dst, Piece::Rook, c);
+                self.board.clear_square(src);
+                self.white_pieces &= !BitBoard::from_square(src);
+                self.white_pieces |= BitBoard::from_square(dst);
+                self.black_pieces &= !BitBoard::from_square(src);
             }
         }
 
         // Promote
         if let Some(p) = m.get_promotion() {
-            self.bb.piece(m.get_dest(), p, c);
+            self.board.piece(m.get_dest(), p, c);
         }
 
         // Switch turns
-        self.bb.side_to_move(opp);
+        self.board.side_to_move(opp);
 
     }
 
@@ -187,10 +204,10 @@ impl MyBoard {
         assert!(self.awaiting_bonus); self.awaiting_bonus = false;
 
         if is_bonus {
-            let opp = if self.bb.get_side_to_move() == Color::White {
+            let opp = if self.board.get_side_to_move() == Color::White {
                 Color::Black
             } else { Color::White };
-            self.bb.side_to_move(opp);
+            self.board.side_to_move(opp);
         }
 
         // Detect no moves draw
@@ -205,17 +222,11 @@ impl MyBoard {
             .collect::<Vec<Vec<ChessMove>>>().concat()
     }
 
-    // TODO: restructure BitBoard usage for efficiency
     fn color_combined(&self, c: Color) -> BitBoard {
-        let mut bb = EMPTY;
-        for sq in MySquare::all_squares() {
-            match self[sq] {
-                Some((_, color)) if color == c =>
-                    bb |= BitBoard::from_square(sq.0),
-                _ => {}
-            }
+        match c {
+            Color::White => self.white_pieces,
+            Color::Black => self.black_pieces,
         }
-        bb
     }
 
     fn combined(&self) -> BitBoard {
@@ -251,6 +262,6 @@ impl MySquare {
 impl Index<MySquare> for MyBoard {
     type Output = Option<(Piece, Color)>;
     fn index(&self, sq: MySquare) -> &Self::Output {
-        &self.bb[sq.0]
+        &self.board[sq.0]
     }
 }
