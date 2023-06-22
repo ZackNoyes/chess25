@@ -5,6 +5,9 @@ mod minimax;
 mod evaluator;
 mod proportion_count;
 
+mod position_table;
+mod position;
+
 use chess::{ChessMove, Color};
 use crate::{CHANCE_OF_BONUS, CHANCE_OF_NO_BONUS};
 use crate::my_board::MyBoard;
