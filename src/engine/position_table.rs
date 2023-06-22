@@ -24,10 +24,10 @@ use chess::{Piece, Color, CastleRights};
 /// 
 /// Note that en passant is not implemented, so it isn't included in the state
 #[derive(Clone, Copy, PartialEq, Eq, Hash)]
-pub struct Position {
-    pub pieces: [Option<(Piece, Color)>; 64],
-    pub castle_rights: [CastleRights; 2],
-    pub side_to_move: Color,
+struct Position {
+    pieces: [Option<(Piece, Color)>; 64],
+    castle_rights: [CastleRights; 2],
+    side_to_move: Color,
 }
 
 pub struct PositionTable {
@@ -139,12 +139,17 @@ impl PositionTable {
             \t\tMisses: {} ({:.1}%)\n",
             self.table.capacity(),
             self.insert_attempts,
-            self.insert_additions, 100 * self.insert_additions / self.insert_attempts,
-            self.insert_overwrites, 100 * self.insert_overwrites / self.insert_attempts,
-            self.insert_ignores, 100 * self.insert_ignores / self.insert_attempts,
+            self.insert_additions,
+            100 * self.insert_additions.checked_div(self.insert_attempts).unwrap_or(0),
+            self.insert_overwrites,
+            100 * self.insert_overwrites.checked_div(self.insert_attempts).unwrap_or(0),
+            self.insert_ignores,
+            100 * self.insert_ignores.checked_div(self.insert_attempts).unwrap_or(0),
             self.get_attempts,
-            self.get_hits, 100 * self.get_hits / self.get_attempts,
-            self.get_misses, 100 * self.get_misses / self.get_attempts,
+            self.get_hits,
+            100 * self.get_hits.checked_div(self.get_attempts).unwrap_or(0),
+            self.get_misses,
+            100 * self.get_misses.checked_div(self.get_attempts).unwrap_or(0),
         )
     }
 
