@@ -3,7 +3,7 @@ use std::collections::HashMap;
 use chess::{Piece, Color};
 use wasm_bindgen::prelude::wasm_bindgen;
 
-use crate::my_board::{MyBoard, Status, MySquare};
+use crate::my_board::{MyBoard, Status};
 use super::StaticEvaluator;
 
 #[wasm_bindgen]
