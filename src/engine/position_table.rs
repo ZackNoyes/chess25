@@ -78,7 +78,7 @@ impl PositionTable {
         };
         let mut position = Position::from_board(board);
         self.insert_position(position, new_params, score);
-        position.side_to_move = !position.side_to_move;
+        position.switch_side_to_move();
         self.insert_position(position, new_params, score);
     }
 
@@ -132,25 +132,25 @@ impl PositionTable {
     pub fn info(&mut self) -> String {
         format!("Position table of capacity {}:\n\
             \tTotal insert attempts: {}\n\
-            \t\tAdditions: {} ({:.1}%)\n\
-            \t\tOverwrites: {} ({:.1}%)\n\
-            \t\tIgnores: {} ({:.1}%)\n\
+            \t\tAdditions: {} ({}%)\n\
+            \t\tOverwrites: {} ({}%)\n\
+            \t\tIgnores: {} ({}%)\n\
             \tTotal get attempts: {}\n\
-            \t\tHits: {} ({:.1}%)\n\
-            \t\tMisses: {} ({:.1}%)\n",
+            \t\tHits: {} ({}%)\n\
+            \t\tMisses: {} ({}%)\n",
             self.table.capacity(),
             self.insert_attempts,
             self.insert_additions,
-            100 * self.insert_additions.checked_div(self.insert_attempts).unwrap_or(0),
+            (100 * self.insert_additions).checked_div(self.insert_attempts).unwrap_or(0),
             self.insert_overwrites,
-            100 * self.insert_overwrites.checked_div(self.insert_attempts).unwrap_or(0),
+            (100 * self.insert_overwrites).checked_div(self.insert_attempts).unwrap_or(0),
             self.insert_ignores,
-            100 * self.insert_ignores.checked_div(self.insert_attempts).unwrap_or(0),
+            (100 * self.insert_ignores).checked_div(self.insert_attempts).unwrap_or(0),
             self.get_attempts,
             self.get_hits,
-            100 * self.get_hits.checked_div(self.get_attempts).unwrap_or(0),
+            (100 * self.get_hits).checked_div(self.get_attempts).unwrap_or(0),
             self.get_misses,
-            100 * self.get_misses.checked_div(self.get_attempts).unwrap_or(0),
+            (100 * self.get_misses).checked_div(self.get_attempts).unwrap_or(0),
         )
     }
 
@@ -191,6 +191,10 @@ impl Position {
             side_to_move: board.get_side_to_move(),
             zobrist_hash: board.get_zobrist_hash(),
         }
+    }
+    pub fn switch_side_to_move(&mut self) {
+        self.zobrist_hash ^= crate::zobrist::Zobrist::color();
+        self.side_to_move = !self.side_to_move;
     }
 }
 

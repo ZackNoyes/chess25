@@ -70,7 +70,7 @@ impl Minimax {
 
 impl Engine for Minimax {
     fn default(static_evaluator: impl StaticEvaluator + 'static) -> Self {
-        Minimax::new(static_evaluator, 3)
+        Minimax::new(static_evaluator, 4)
     }
 
     fn evaluate(&mut self, board: &MyBoard) -> f64 {
