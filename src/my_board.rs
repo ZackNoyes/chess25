@@ -2,8 +2,9 @@
 use std::ops::Index;
 use chess::{
     BoardBuilder, Square, Rank, File, ChessMove, Piece, Color, CastleRights,
-    BitBoard, EMPTY, PROMOTION_PIECES, ALL_SQUARES
+    BitBoard, EMPTY, PROMOTION_PIECES, ALL_SQUARES,
 };
+use crate::zobrist::Zobrist;
 
 #[derive(Copy, Clone)]
 pub struct MyBoard {
@@ -15,6 +16,7 @@ pub struct MyBoard {
     awaiting_bonus: bool, // TODO: refactor into side_to_move
     white_pieces: BitBoard,
     black_pieces: BitBoard,
+    zobrist_hash: u64,
 }
 
 #[derive(Copy, Clone)]
@@ -39,8 +41,12 @@ impl MyBoard {
     pub fn get_status(&self) -> Status { self.status }
     pub fn get_white_pieces(&self) -> BitBoard { self.white_pieces }
     pub fn get_black_pieces(&self) -> BitBoard { self.black_pieces }
+    pub fn get_zobrist_hash(&self) -> u64 { self.zobrist_hash }
 
+    /// Sets the castle rights, updating the zobrist hash
     fn set_castle_rights(&mut self, color: Color, rights: CastleRights) {
+        self.zobrist_hash ^= Zobrist::castles(self.get_castle_rights(color), color);
+        self.zobrist_hash ^= Zobrist::castles(rights, color);
         match color {
             Color::White => self.castle_rights[0] = rights,
             Color::Black => self.castle_rights[1] = rights,
@@ -52,6 +58,7 @@ impl MyBoard {
         let mut pieces = [None; 64];
         let mut white_pieces = EMPTY;
         let mut black_pieces = EMPTY;
+        let mut zobrist_hash = 0;
         for sq in ALL_SQUARES {
             if let Some((piece, color)) = board[sq] {
                 pieces[sq.to_index()] = Some((piece, color));
@@ -59,7 +66,13 @@ impl MyBoard {
                     Color::White => white_pieces |= BitBoard::from_square(sq),
                     Color::Black => black_pieces |= BitBoard::from_square(sq),
                 }
+                zobrist_hash ^= Zobrist::piece(piece, sq, color);
             }
+        }
+        zobrist_hash ^= Zobrist::castles(CastleRights::Both, Color::White);
+        zobrist_hash ^= Zobrist::castles(CastleRights::Both, Color::Black);
+        if matches!(starting_color, Color::Black) {
+            zobrist_hash ^= Zobrist::color();
         }
         let board = MyBoard {
             pieces,
@@ -70,6 +83,7 @@ impl MyBoard {
             awaiting_bonus: false,
             white_pieces,
             black_pieces,
+            zobrist_hash,
         };
         board
     }
@@ -178,9 +192,8 @@ impl MyBoard {
         }
 
         // Apply the move
-        self.pieces[m.get_dest().to_index()] = Some((p, c));
-        self.pieces[m.get_source().to_index()] = None;
-        self.update_bitboards(c, m.get_source(), m.get_dest());
+        self.set_piece(m.get_dest(), Some((p, c)));
+        self.set_piece(m.get_source(), None);
 
         // Handle castling
         if matches!(p, Piece::King) && matches!(m.get_source().get_file(), File::E) {
@@ -193,43 +206,53 @@ impl MyBoard {
                 dst = Some(if c == Color::White { Square::D1 } else { Square::D8 });
             }
             if let (Some(src), Some(dst)) = (src, dst) {
-                self.pieces[dst.to_index()] = Some((Piece::Rook, c));
-                self.pieces[src.to_index()] = None;
-                self.update_bitboards(c, src, dst);
+                self.set_piece(dst, Some((Piece::Rook, c)));
+                self.set_piece(src, None);
             }
         }
 
         // Promote
         if let Some(p) = m.get_promotion() {
-            self.pieces[m.get_dest().to_index()] = Some((p, c));
+            self.set_piece(m.get_dest(), Some((p, c)));
         }
 
         // Switch turns
-        self.side_to_move = !c;
+        self.switch_side_to_move();
 
     }
 
-    /// Updates the internal bitboards to reflect a move by the color `c`
-    /// from `src` to `dst`.
-    fn update_bitboards(&mut self, c: Color, src: Square, dst: Square) {
-        match c {
-            Color::White => {
-                self.white_pieces &= !BitBoard::from_square(src);
-                self.white_pieces |= BitBoard::from_square(dst);
-                self.black_pieces &= !BitBoard::from_square(dst);
+    /// Updates the piece at a particular square. Also updates the bitboards
+    /// and zobrist hash.
+    fn set_piece(&mut self, sq: Square, piece: Option<(Piece, Color)>) {
+        if let Some((p, c)) = self[sq] {
+            if c == Color::White {
+                self.white_pieces &= !BitBoard::from_square(sq);
+            } else {
+                self.black_pieces &= !BitBoard::from_square(sq);
             }
-            Color::Black => {
-                self.black_pieces &= !BitBoard::from_square(src);
-                self.black_pieces |= BitBoard::from_square(dst);
-                self.white_pieces &= !BitBoard::from_square(dst);
-            }
+            self.zobrist_hash ^= Zobrist::piece(p, sq, c);
         }
+        if let Some((p, c)) = piece {
+            if c == Color::White {
+                self.white_pieces |= BitBoard::from_square(sq);
+            } else {
+                self.black_pieces |= BitBoard::from_square(sq);
+            }
+            self.zobrist_hash ^= Zobrist::piece(p, sq, c);
+        }
+        self.pieces[sq.to_index()] = piece;
+    }
+
+    /// Switches the side to move and updates the zobrist hash.
+    fn switch_side_to_move(&mut self) {
+        self.zobrist_hash ^= Zobrist::color();
+        self.side_to_move = !self.side_to_move;
     }
 
     /// Applies the bonus move but doesn't check for a draw
     pub fn apply_bonus_unchecked(&mut self, is_bonus: bool) {
         assert!(self.awaiting_bonus); self.awaiting_bonus = false;
-        if is_bonus { self.side_to_move = !self.side_to_move; }
+        if is_bonus { self.switch_side_to_move() }
     }
 
     pub fn apply_bonus(&mut self, is_bonus: bool) {

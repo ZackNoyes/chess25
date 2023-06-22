@@ -13,7 +13,7 @@ struct Evaluation {
     pub score: f64,
 }
 
-use chess::{Piece, Color, CastleRights, BitBoard};
+use chess::{Piece, Color, CastleRights};
 
 /// A position is a representation of a game state. It contains the necessary
 /// information to distinguish the state from other states, with the exception
@@ -28,8 +28,7 @@ struct Position {
     pieces: [Option<(Piece, Color)>; 64],
     castle_rights: [CastleRights; 2],
     side_to_move: Color,
-    white_pieces: BitBoard,
-    black_pieces: BitBoard,
+    zobrist_hash: u64,
 }
 
 pub struct PositionTable {
@@ -190,8 +189,7 @@ impl Position {
             pieces: board.get_pieces(),
             castle_rights: board.get_castle_rights_arr(),
             side_to_move: board.get_side_to_move(),
-            white_pieces: board.get_white_pieces(),
-            black_pieces: board.get_black_pieces(),
+            zobrist_hash: board.get_zobrist_hash(),
         }
     }
 }
@@ -199,10 +197,7 @@ impl Position {
 impl Hash for Position {
 
     fn hash<H: std::hash::Hasher>(&self, state: &mut H) {
-        self.castle_rights.hash(state);
-        self.side_to_move.hash(state);
-        self.white_pieces.hash(state);
-        self.black_pieces.hash(state);
+        self.zobrist_hash.hash(state);
     }
 
 }

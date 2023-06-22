@@ -2,6 +2,7 @@ mod utils;
 mod my_board;
 mod js_interface;
 mod engine;
+mod zobrist;
 
 const CHANCE_OF_BONUS: f64 = 0.25;
 const CHANCE_OF_NO_BONUS: f64 = 1.0 - CHANCE_OF_BONUS;
