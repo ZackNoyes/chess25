@@ -32,7 +32,7 @@ struct Position {
 }
 
 pub struct PositionTable {
-    table: HashMap<Position, Evaluation>,
+    table: HashMap<Position, Evaluation>, // TODO: This becomes bigger than usize and crashes
     // Debug info
     insert_attempts: u64,
     insert_additions: u64,
