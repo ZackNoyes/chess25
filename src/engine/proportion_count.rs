@@ -38,16 +38,19 @@ impl StaticEvaluator for ProportionCount {
 
         let mut white_value = 0;
         let mut black_value = 0;
-        
-        for sq in MySquare::all_squares() {
-            if let Some((piece, color)) = board[sq] {
-                let value = self.piece_values[&piece];
-                if matches!(color, Color::White) {
-                    white_value += value;
-                } else {
-                    black_value += value;
-                }
-            }
+
+        for sq in board.get_white_pieces() {
+            let Some((piece, Color::White)) = board.get_board()[sq]
+                else { panic!("White piece not found on square {:?}", sq); };
+            let value = self.piece_values[&piece];
+            white_value += value;
+        }
+
+        for sq in board.get_black_pieces() {
+            let Some((piece, Color::Black)) = board.get_board()[sq]
+                else { panic!("Black piece not found on square {:?}", sq); };
+            let value = self.piece_values[&piece];
+            black_value += value;
         }
 
         let total_value = white_value + black_value;

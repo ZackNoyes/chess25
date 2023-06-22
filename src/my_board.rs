@@ -27,13 +27,10 @@ pub enum Status {
 
 impl MyBoard {
 
-    pub fn get_board(&self) -> &BoardBuilder {
-        &self.board
-    }
-
-    pub fn get_status(&self) -> Status {
-        self.status
-    }
+    pub fn get_board(&self) -> &BoardBuilder { &self.board }
+    pub fn get_status(&self) -> Status { self.status }
+    pub fn get_white_pieces(&self) -> BitBoard { self.white_pieces }
+    pub fn get_black_pieces(&self) -> BitBoard { self.black_pieces }
 
     pub fn initial_board(starting_color: Color) -> MyBoard {
         let board = BoardBuilder::default();
