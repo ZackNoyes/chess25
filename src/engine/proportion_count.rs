@@ -40,14 +40,14 @@ impl StaticEvaluator for ProportionCount {
         let mut black_value = 0;
 
         for sq in board.get_white_pieces() {
-            let Some((piece, Color::White)) = board.get_board()[sq]
+            let Some((piece, Color::White)) = board[sq]
                 else { panic!("White piece not found on square {:?}", sq); };
             let value = self.piece_values[&piece];
             white_value += value;
         }
 
         for sq in board.get_black_pieces() {
-            let Some((piece, Color::Black)) = board.get_board()[sq]
+            let Some((piece, Color::Black)) = board[sq]
                 else { panic!("Black piece not found on square {:?}", sq); };
             let value = self.piece_values[&piece];
             black_value += value;

@@ -1,7 +1,7 @@
 
 use wasm_bindgen::prelude::*;
-use crate::{my_board::{MyBoard, MySquare, Status}, engine::Engine};
-use chess::{ChessMove, Color, ALL_PIECES};
+use crate::{my_board::{MyBoard, Status}, engine::Engine};
+use chess::{ChessMove, Color, ALL_PIECES, Square};
 use js_sys::{Array, JsString};
 
 #[wasm_bindgen]
@@ -24,7 +24,7 @@ impl JSInterface {
     }
 
     pub fn js_piece(&self, file: usize, rank: usize) -> Option<JsString> {
-        let square = MySquare::new(file, rank);
+        let square = make_square(file, rank);
         match self.board[square] {
             Some((p, c)) => Some(p.to_string(c).into()),
             _ => None
@@ -32,7 +32,7 @@ impl JSInterface {
     }
 
     pub fn js_piece_color(&self, file: usize, rank: usize) -> JsString {
-        let square = MySquare::new(file, rank);
+        let square = make_square(file, rank);
         match self.board[square] {
             Some((_, Color::White)) => "white".into(),
             Some((_, Color::Black)) => "black".into(),
@@ -41,7 +41,7 @@ impl JSInterface {
     }
 
     pub fn js_moves_from(&self, file: usize, rank: usize) -> Array {
-        let square = MySquare::new(file, rank);
+        let square = make_square(file, rank);
         let moves = self.board.moves_from(square);
         let js_moves = Array::new();
         for m in moves {
@@ -57,10 +57,10 @@ impl JSInterface {
     pub fn js_check_move(&self,
         from_file: usize, from_rank: usize, to_file: usize, to_rank: usize
     ) -> Option<bool> {
-        let from = MySquare::new(from_file, from_rank);
-        let to = MySquare::new(to_file, to_rank);
-        let m = ChessMove::new(from.0, to.0, None);
-        let mp = ChessMove::new(from.0, to.0, Some(ALL_PIECES[1]));
+        let from = make_square(from_file, from_rank);
+        let to = make_square(to_file, to_rank);
+        let m = ChessMove::new(from, to, None);
+        let mp = ChessMove::new(from, to, Some(ALL_PIECES[1]));
         if self.board.moves_from(from).contains(&m) {
             Some(false)
         } else if self.board.moves_from(from).contains(&mp) {
@@ -74,9 +74,9 @@ impl JSInterface {
         from_file: usize, from_rank: usize, to_file: usize, to_rank: usize,
         promotion: Option<usize>
     ) {
-        let from = MySquare::new(from_file, from_rank);
-        let to = MySquare::new(to_file, to_rank);
-        let m = ChessMove::new(from.0, to.0, promotion.map(|i| ALL_PIECES[i]));
+        let from = make_square(from_file, from_rank);
+        let to = make_square(to_file, to_rank);
+        let m = ChessMove::new(from, to, promotion.map(|i| ALL_PIECES[i]));
         self.board.apply_move(m);
     }
 
@@ -85,7 +85,7 @@ impl JSInterface {
     }
 
     pub fn js_get_side_to_move(&self) -> JsString {
-        if self.board.get_board().get_side_to_move().to_index() == 0 { "white".into() }
+        if self.board.get_side_to_move().to_index() == 0 { "white".into() }
         else { "black".into() }
     }
 
@@ -121,4 +121,11 @@ fn move_to_array(m: ChessMove) -> Array {
         .into()
     );
     js_move
+}
+
+fn make_square(file: usize, rank: usize) -> Square {
+    Square::make_square(
+        chess::Rank::from_index(rank),
+        chess::File::from_index(file)
+    )
 }

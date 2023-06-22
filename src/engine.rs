@@ -18,7 +18,7 @@ pub trait Engine {
 
         // for controlling whether we choose the maximum or the minimum
         let multiplier =
-            if matches!(board.get_board().get_side_to_move(), Color::White) { 1.0 }
+            if matches!(board.get_side_to_move(), Color::White) { 1.0 }
             else { -1.0 };
 
         let move_evaluations = board.all_moves().into_iter().map(|mv| {
