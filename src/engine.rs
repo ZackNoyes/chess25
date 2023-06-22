@@ -58,5 +58,5 @@ pub trait Engine {
 }
 
 pub fn default_engine() -> impl Engine {
-    minimax::Minimax::new(proportion_count::ProportionCount::default(), 4)
+    minimax::Minimax::new(proportion_count::ProportionCount::default(), 3)
 }
