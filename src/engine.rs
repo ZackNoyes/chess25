@@ -27,6 +27,7 @@ pub trait Engine {
             let mut new_board = *board; new_board.apply_move(mv);
             let mut bonus_board = new_board; bonus_board.apply_bonus(true);
             let mut no_bonus_board = new_board; no_bonus_board.apply_bonus(false);
+            web_sys::console::log_1(&format!("Considering move {} to {}", mv.get_source(), mv.get_dest()).into());
             let evaluation =
                 CHANCE_OF_BONUS * self.evaluate(&bonus_board)
                 + CHANCE_OF_NO_BONUS * self.evaluate(&no_bonus_board);

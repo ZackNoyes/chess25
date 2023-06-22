@@ -74,6 +74,9 @@ impl Engine for Minimax {
     }
 
     fn evaluate(&mut self, board: &MyBoard) -> f64 {
-        self.evaluate_with_cutoff(&board, self.lookahead - 1)
+        let ret = self.evaluate_with_cutoff(&board, self.lookahead - 1);
+        web_sys::console::log_1(&self.position_table.info().into());
+        self.position_table.reset_debug_info();
+        ret
     }
 }

@@ -31,13 +31,28 @@ pub struct Position {
 }
 
 pub struct PositionTable {
-    table: HashMap<Position, Evaluation>
+    table: HashMap<Position, Evaluation>,
+    // Debug info
+    insert_attempts: u64,
+    insert_additions: u64,
+    insert_ignores: u64,
+    insert_overwrites: u64,
+    get_attempts: u64,
+    get_misses: u64,
+    get_hits: u64,
 }
 
 impl PositionTable {
     pub fn new() -> PositionTable {
         PositionTable {
             table: HashMap::new(),
+            insert_attempts: 0,
+            insert_additions: 0,
+            insert_ignores: 0,
+            insert_overwrites: 0,
+            get_attempts: 0,
+            get_misses: 0,
+            get_hits: 0,
         }
     }
 
@@ -69,9 +84,19 @@ impl PositionTable {
     /// Insert a position and score into the table if the new parameters are
     /// `not_worse_than` the existing parameters.
     fn insert_position(&mut self, position: Position, params: Parameters, score: f64) {
+
+        self.insert_attempts += 1;
+        
         if match self.table.get(&position) {
-            None => true,
-            Some(evaluation) => evaluation.parameters.not_worse_than(&params),
+            None => {
+                self.insert_additions += 1; true
+            },
+            Some(evaluation) if evaluation.parameters.not_worse_than(&params) => {
+                self.insert_overwrites += 1; true
+            },
+            _ => {
+                self.insert_ignores += 1; false
+            }
         } {
             self.table.insert(position, Evaluation {
                 parameters: params,
@@ -80,8 +105,11 @@ impl PositionTable {
         }
     }
 
-    /// Get the score of a board if we have an existing evaluation of this board
-    pub fn get(&self, board: &MyBoard, depth: u8) -> Option<f64> {
+    /// Get the score of a board if we have an existing evaluation of this
+    /// board. Needs to be mutable to update the debug info
+    pub fn get(&mut self, board: &MyBoard, depth: u8) -> Option<f64> {
+
+        self.get_attempts += 1;
 
         let params = Parameters {
             depth,
@@ -89,10 +117,45 @@ impl PositionTable {
         };
 
         match self.table.get(&Position::from_board(&board)) {
-            Some(evaluation) if evaluation.parameters.better_than(&params) =>
-                Some(evaluation.score),
-            _ => None,
+            Some(evaluation) if evaluation.parameters.better_than(&params) => {
+                self.get_hits += 1;
+                Some(evaluation.score)
+            },
+            _ => {
+                self.get_misses += 1;
+                None
+            },
         }
+    }
+
+    pub fn info(&mut self) -> String {
+        format!("Position table of capacity {}:\n\
+            \tTotal insert attempts: {}\n\
+            \t\tAdditions: {} ({:.1}%)\n\
+            \t\tOverwrites: {} ({:.1}%)\n\
+            \t\tIgnores: {} ({:.1}%)\n\
+            \tTotal get attempts: {}\n\
+            \t\tHits: {} ({:.1}%)\n\
+            \t\tMisses: {} ({:.1}%)\n",
+            self.table.capacity(),
+            self.insert_attempts,
+            self.insert_additions, 100 * self.insert_additions / self.insert_attempts,
+            self.insert_overwrites, 100 * self.insert_overwrites / self.insert_attempts,
+            self.insert_ignores, 100 * self.insert_ignores / self.insert_attempts,
+            self.get_attempts,
+            self.get_hits, 100 * self.get_hits / self.get_attempts,
+            self.get_misses, 100 * self.get_misses / self.get_attempts,
+        )
+    }
+
+    pub fn reset_debug_info(&mut self) {
+        self.insert_attempts = 0;
+        self.insert_additions = 0;
+        self.insert_ignores = 0;
+        self.insert_overwrites = 0;
+        self.get_attempts = 0;
+        self.get_hits = 0;
+        self.get_misses = 0;
     }
 
 }
