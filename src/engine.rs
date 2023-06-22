@@ -6,7 +6,6 @@ mod evaluator;
 mod proportion_count;
 
 mod position_table;
-mod position;
 
 use chess::{ChessMove, Color};
 use crate::{CHANCE_OF_BONUS, CHANCE_OF_NO_BONUS};
@@ -61,5 +60,5 @@ pub trait Engine {
 }
 
 pub fn default_engine() -> impl Engine {
-    minimax::Minimax::new(proportion_count::ProportionCount::default(), 3)
+    minimax::Minimax::default(proportion_count::ProportionCount::default())
 }

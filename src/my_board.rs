@@ -26,13 +26,16 @@ pub enum Status {
 
 impl MyBoard {
 
+    pub fn get_pieces(&self) -> [Option<(Piece, Color)>; 64] { self.pieces }
     pub fn get_side_to_move(&self) -> Color { self.side_to_move }
+    pub fn get_castle_rights_arr(&self) -> [CastleRights; 2] { self.castle_rights }
     pub fn get_castle_rights(&self, color: Color) -> CastleRights {
         match color {
             Color::White => self.castle_rights[0],
             Color::Black => self.castle_rights[1],
         }
     }
+    pub fn get_dead_moves(&self) -> u8 { self.dead_moves }
     pub fn get_status(&self) -> Status { self.status }
     pub fn get_white_pieces(&self) -> BitBoard { self.white_pieces }
     pub fn get_black_pieces(&self) -> BitBoard { self.black_pieces }
@@ -140,7 +143,6 @@ impl MyBoard {
         let (p, c) = self[m.get_source()].expect("No piece at source");
 
         // Adjust the castling rights
-        let opp = if c == Color::White { Color::Black } else { Color::White };
         // Remove castling rights based on piece moved
         self.set_castle_rights(
             c,
@@ -150,9 +152,9 @@ impl MyBoard {
         );
         // Remove opponent castling rights based on piece taken
         self.set_castle_rights(
-            opp,
-            self.get_castle_rights(opp).remove(
-                CastleRights::square_to_castle_rights(opp, m.get_dest())
+            !c,
+            self.get_castle_rights(!c).remove(
+                CastleRights::square_to_castle_rights(!c, m.get_dest())
             )
         );
 
@@ -203,7 +205,7 @@ impl MyBoard {
         }
 
         // Switch turns
-        self.side_to_move = opp;
+        self.side_to_move = !c;
 
     }
 
@@ -227,13 +229,7 @@ impl MyBoard {
     /// Applies the bonus move but doesn't check for a draw
     pub fn apply_bonus_unchecked(&mut self, is_bonus: bool) {
         assert!(self.awaiting_bonus); self.awaiting_bonus = false;
-
-        if is_bonus {
-            let opp = if self.side_to_move == Color::White {
-                Color::Black
-            } else { Color::White };
-            self.side_to_move = opp;
-        }
+        if is_bonus { self.side_to_move = !self.side_to_move; }
     }
 
     pub fn apply_bonus(&mut self, is_bonus: bool) {
