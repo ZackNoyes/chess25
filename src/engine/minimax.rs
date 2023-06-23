@@ -9,7 +9,7 @@ use super::{Engine, StaticEvaluator};
 pub struct Minimax {
     static_evaluator: Box<dyn StaticEvaluator>,
     lookahead: u8,
-    position_table: PositionTable,
+    position_table: PositionTable<Score>,
 }
 
 impl Minimax {

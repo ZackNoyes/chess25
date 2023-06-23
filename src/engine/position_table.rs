@@ -1,5 +1,5 @@
 
-use crate::{my_board::MyBoard, Score};
+use crate::{my_board::MyBoard};
 
 // 2^27 is the maximum we can get with Vec's allocation
 // I've scaled it down a bit since the allocation does take quite a while,
@@ -13,10 +13,10 @@ struct Parameters {
 }
 
 #[derive(Clone, Copy)]
-struct Evaluation {
+struct Evaluation<S> {
     pub position: Position,
     pub parameters: Parameters,
-    pub score: Score,
+    pub score: S,
 }
 
 /// A position simply stores a hash of the board, which is considered to
@@ -32,8 +32,8 @@ struct Position {
     zobrist_hash: u64,
 }
 
-pub struct PositionTable {
-    table: Box<[Option<Evaluation>]>,
+pub struct PositionTable<S: Copy> {
+    table: Box<[Option<Evaluation<S>>]>,
     // Debug info
     items: usize,
     insert_attempts: u64,
@@ -46,14 +46,14 @@ pub struct PositionTable {
     get_incorrects: u64,
 }
 
-impl PositionTable {
+impl<S: Copy> PositionTable<S> {
 
-    pub fn new() -> PositionTable {
+    pub fn new() -> PositionTable<S> {
         let table = vec![None; TABLE_SIZE].into_boxed_slice();
         web_sys::console::log_1(&format!(
             "Position table of {} elements (each {} bytes) allocated. Total size {} MB",
-            table.len(), std::mem::size_of::<Option<Evaluation>>(),
-            table.len() * std::mem::size_of::<Option<Evaluation>>() / 1000000
+            table.len(), std::mem::size_of::<Option<Evaluation<S>>>(),
+            table.len() * std::mem::size_of::<Option<Evaluation<S>>>() / 1000000
         ).into());
         PositionTable {
             table,
@@ -71,7 +71,7 @@ impl PositionTable {
 
     /// Insert a board into the position table if we don't already have
     /// something better
-    pub fn insert(&mut self, board: &MyBoard, depth: u8, score: Score) {
+    pub fn insert(&mut self, board: &MyBoard, depth: u8, score: S) {
         let new_params = Parameters {
             depth,
             dead_moves: board.get_dead_moves(),
@@ -83,7 +83,7 @@ impl PositionTable {
     /// Insert a board into the position table for both colors if we don't
     /// already have something better. This might be useful when the depth
     /// is 0 and so the evaluation is known to be the same for both colors.
-    pub fn insert_both_colors(&mut self, board: &MyBoard, depth: u8, score: Score) {
+    pub fn insert_both_colors(&mut self, board: &MyBoard, depth: u8, score: S) {
         let new_params = Parameters {
             depth,
             dead_moves: board.get_dead_moves(),
@@ -96,7 +96,7 @@ impl PositionTable {
 
     /// Insert a position and score into the table if the new parameters are
     /// `not_worse_than` the existing parameters.
-    fn insert_position(&mut self, position: Position, params: Parameters, score: Score) {
+    fn insert_position(&mut self, position: Position, params: Parameters, score: S) {
 
         self.insert_attempts += 1;
         
@@ -126,7 +126,7 @@ impl PositionTable {
 
     /// Get the score of a board if we have an existing evaluation of this
     /// board. Needs to be mutable to update the debug info
-    pub fn get(&mut self, board: &MyBoard, depth: u8) -> Option<Score> {
+    pub fn get(&mut self, board: &MyBoard, depth: u8) -> Option<S> {
 
         self.get_attempts += 1;
 

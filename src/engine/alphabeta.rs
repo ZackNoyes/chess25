@@ -11,7 +11,7 @@ use super::position_table::PositionTable;
 pub struct AlphaBeta {
     static_evaluator: Box<dyn StaticEvaluator>,
     lookahead: u8,
-    position_table: PositionTable,
+    position_table: PositionTable<Bounds>,
 }
 
 /// Bounds for the possible evaluations for a move. The bounds are exclusive
@@ -152,7 +152,7 @@ impl AlphaBeta {
         let is_maxing = matches!(board.get_side_to_move(), White);
         let mut best_result = None;
 
-        for mv in board.all_moves() {
+        for mv in board.all_moves() { // TODO: order moves
             
             let (b_board, nb_board) = self.next_boards(board, mv, depth != 1);
 
