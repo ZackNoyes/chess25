@@ -1,31 +1,16 @@
-
-use std::collections::HashMap;
-use chess::{Piece, Color};
+use chess::Color;
 use wasm_bindgen::prelude::wasm_bindgen;
 
 use crate::{my_board::{MyBoard, Status}, Score};
 use super::StaticEvaluator;
 
+const PIECE_VALUES: [u8; 6] = [1, 3, 3, 5, 9, 1];
+
 #[wasm_bindgen]
-pub struct ProportionCount {
-    piece_values: HashMap<Piece, u8>,
-}
+pub struct ProportionCount;
 
 impl Default for ProportionCount {
-
-    fn default() -> Self {
-        let mut piece_values = HashMap::new();
-        piece_values.insert(Piece::Pawn, 1);
-        piece_values.insert(Piece::Knight, 3);
-        piece_values.insert(Piece::Bishop, 3);
-        piece_values.insert(Piece::Rook, 5);
-        piece_values.insert(Piece::Queen, 9);
-        piece_values.insert(Piece::King, 1);
-        ProportionCount {
-            piece_values
-        }
-    }
-
+    fn default() -> Self { ProportionCount {} }
 }
 
 impl StaticEvaluator for ProportionCount {
@@ -42,14 +27,14 @@ impl StaticEvaluator for ProportionCount {
         for sq in board.get_white_pieces() {
             let Some((piece, Color::White)) = board[sq]
                 else { panic!("White piece not found on square {:?}", sq); };
-            let value = self.piece_values[&piece];
+            let value = PIECE_VALUES[piece.to_index()];
             white_value += value;
         }
 
         for sq in board.get_black_pieces() {
             let Some((piece, Color::Black)) = board[sq]
                 else { panic!("Black piece not found on square {:?}", sq); };
-            let value = self.piece_values[&piece];
+            let value = PIECE_VALUES[piece.to_index()];
             black_value += value;
         }
 
