@@ -28,9 +28,7 @@ pub enum Status {
 
 impl MyBoard {
 
-    pub fn get_pieces(&self) -> [Option<(Piece, Color)>; 64] { self.pieces }
     pub fn get_side_to_move(&self) -> Color { self.side_to_move }
-    pub fn get_castle_rights_arr(&self) -> [CastleRights; 2] { self.castle_rights }
     pub fn get_castle_rights(&self, color: Color) -> CastleRights {
         match color {
             Color::White => self.castle_rights[0],

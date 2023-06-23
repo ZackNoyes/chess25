@@ -100,11 +100,17 @@ impl PositionTable {
 
         self.insert_attempts += 1;
         
-        if match self.table[position.as_index()] { // TODO: Detect when you should ignore the insert
+        if match self.table[position.as_index()] {
             None => {
                 self.insert_additions += 1;
                 self.items += 1;
                 true
+            },
+            Some(evaluation) if 
+                evaluation.position == position
+                && !params.should_replace(&evaluation.parameters)
+            => {
+                self.insert_ignores += 1; false
             },
             Some(_) => {
                 self.insert_overwrites += 1; true
@@ -198,11 +204,17 @@ impl Parameters {
     fn saw_50_move_rule(&self) -> bool {
         50 - self.dead_moves <= self.depth
     }
-    pub fn not_worse_than(&self, other: &Self) -> bool {
-        self.saw_50_move_rule()
-        || other.saw_50_move_rule()
-        || self.depth >= other.depth
+    /// Returns true if an evaluation for `self` should replace one for `other`
+    /// in the table
+    pub fn should_replace(&self, other: &Self) -> bool {
+        self.depth >= other.depth
+        || (
+            self.dead_moves != other.dead_moves
+            && (self.saw_50_move_rule() || other.saw_50_move_rule())
+        )
     }
+    /// Returns true if an evaluation for `self` can be trusted instead of
+    /// one for `other`.
     pub fn better_than(&self, other: &Self) -> bool {
         self.depth >= other.depth && (
             self.dead_moves == other.dead_moves
