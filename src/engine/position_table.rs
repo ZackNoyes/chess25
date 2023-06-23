@@ -1,6 +1,10 @@
-use std::{collections::HashMap, hash::Hash};
 
 use crate::{my_board::MyBoard, Score};
+
+// 2^27 is the maximum we can get with Vec's allocation
+// I've scaled it down a bit since hte allocation does take quite a while,
+// especially with the debug build
+const TABLE_SIZE: usize = 1 << 23;
 
 #[derive(Clone, Copy)]
 struct Parameters {
@@ -8,6 +12,7 @@ struct Parameters {
     pub dead_moves: u8,
 }
 
+#[derive(Clone, Copy)]
 struct Evaluation {
     pub parameters: Parameters,
     pub score: Score,
@@ -25,35 +30,45 @@ use chess::{Piece, Color, CastleRights};
 /// Note that en passant is not implemented, so it isn't included in the state
 #[derive(Clone, Copy, PartialEq, Eq)]
 struct Position {
+    zobrist_hash: u64,
     pieces: [Option<(Piece, Color)>; 64],
     castle_rights: [CastleRights; 2],
     side_to_move: Color,
-    zobrist_hash: u64,
 }
 
 pub struct PositionTable {
-    table: HashMap<Position, Evaluation>, // TODO: This becomes bigger than usize and crashes
+    table: Box<[Option<Evaluation>]>,
     // Debug info
+    items: usize,
     insert_attempts: u64,
     insert_additions: u64,
     insert_ignores: u64,
     insert_overwrites: u64,
     get_attempts: u64,
-    get_misses: u64,
+    get_blanks: u64,
     get_hits: u64,
+    get_incorrects: u64,
 }
 
 impl PositionTable {
+
     pub fn new() -> PositionTable {
+        let table = vec![None; TABLE_SIZE].into_boxed_slice();
+        web_sys::console::log_1(&format!(
+            "Position table size: {} MB",
+            table.len() * std::mem::size_of::<Option<Evaluation>>() / 1000000
+        ).into());
         PositionTable {
-            table: HashMap::new(),
+            table: table,
+            items: 0,
             insert_attempts: 0,
             insert_additions: 0,
             insert_ignores: 0,
             insert_overwrites: 0,
             get_attempts: 0,
-            get_misses: 0,
+            get_blanks: 0,
             get_hits: 0,
+            get_incorrects: 0,
         }
     }
 
@@ -88,18 +103,17 @@ impl PositionTable {
 
         self.insert_attempts += 1;
         
-        if match self.table.get(&position) {
+        if match self.table[position.as_index()] { // TODO: Detect when you should ignore the insert
             None => {
-                self.insert_additions += 1; true
+                self.insert_additions += 1;
+                self.items += 1;
+                true
             },
-            Some(evaluation) if evaluation.parameters.not_worse_than(&params) => {
+            Some(_) => {
                 self.insert_overwrites += 1; true
             },
-            _ => {
-                self.insert_ignores += 1; false
-            }
         } {
-            self.table.insert(position, Evaluation {
+            self.table[position.as_index()] = Some(Evaluation {
                 parameters: params,
                 score,
             });
@@ -117,28 +131,33 @@ impl PositionTable {
             dead_moves: board.get_dead_moves(),
         };
 
-        match self.table.get(&Position::from_board(&board)) {
-            Some(evaluation) if evaluation.parameters.better_than(&params) => {
+        let pos = Position::from_board(&board);
+
+        match self.table[pos.as_index()] {
+            Some(evaluation) if evaluation.parameters.better_than(&params) => { // TODO: Incorrect retrievals
                 self.get_hits += 1;
                 Some(evaluation.score)
             },
             _ => {
-                self.get_misses += 1;
+                self.get_blanks += 1;
                 None
             },
         }
     }
 
     pub fn info(&mut self) -> String {
-        format!("Position table of capacity {}:\n\
+        format!("Position table with {}/{} entries ({}% full):\n\
             \tTotal insert attempts: {}\n\
             \t\tAdditions: {} ({}%)\n\
             \t\tOverwrites: {} ({}%)\n\
             \t\tIgnores: {} ({}%)\n\
             \tTotal get attempts: {}\n\
             \t\tHits: {} ({}%)\n\
-            \t\tMisses: {} ({}%)\n",
-            self.table.capacity(),
+            \t\tBlanks: {} ({}%)\n\
+            \t\tIncorrects: {} ({}%)\n",
+            self.items,
+            self.table.len(),
+            (100 * self.items) / self.table.len(),
             self.insert_attempts,
             self.insert_additions,
             (100 * self.insert_additions).checked_div(self.insert_attempts).unwrap_or(0),
@@ -149,8 +168,10 @@ impl PositionTable {
             self.get_attempts,
             self.get_hits,
             (100 * self.get_hits).checked_div(self.get_attempts).unwrap_or(0),
-            self.get_misses,
-            (100 * self.get_misses).checked_div(self.get_attempts).unwrap_or(0),
+            self.get_blanks,
+            (100 * self.get_blanks).checked_div(self.get_attempts).unwrap_or(0),
+            self.get_incorrects,
+            (100 * self.get_incorrects).checked_div(self.get_attempts).unwrap_or(0),
         )
     }
 
@@ -161,7 +182,8 @@ impl PositionTable {
         self.insert_overwrites = 0;
         self.get_attempts = 0;
         self.get_hits = 0;
-        self.get_misses = 0;
+        self.get_blanks = 0;
+        self.get_incorrects = 0;
     }
 
 }
@@ -196,12 +218,7 @@ impl Position {
         self.zobrist_hash ^= crate::zobrist::Zobrist::color();
         self.side_to_move = !self.side_to_move;
     }
-}
-
-impl Hash for Position {
-
-    fn hash<H: std::hash::Hasher>(&self, state: &mut H) {
-        self.zobrist_hash.hash(state);
+    pub fn as_index(&self) -> usize {
+        self.zobrist_hash as usize % TABLE_SIZE
     }
-
 }
