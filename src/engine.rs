@@ -1,6 +1,7 @@
 
 mod greedy;
 mod minimax;
+mod alphabeta;
 
 mod evaluator;
 mod proportion_count;
@@ -19,12 +20,10 @@ pub trait Engine {
     fn get_move(&mut self, board: &MyBoard) -> ChessMove {
 
         let move_evaluations = board.all_moves().into_iter().map(|mv| {
-            let mut new_board = *board; new_board.apply_move(mv);
-            let mut bonus_board = new_board; bonus_board.apply_bonus(true);
-            let mut no_bonus_board = new_board; no_bonus_board.apply_bonus(false);
+            let (bonus_board, no_bonus_board) = self.next_boards(board, mv, true);
             // Assumes the chance of bonus and chance of no bonus
-            let evaluation = self.evaluate(&bonus_board) / 4
-                + (self.evaluate(&no_bonus_board) / 4) * 3;
+            let evaluation = self.evaluate(&bonus_board) * crate::bonus_chance()
+                + self.evaluate(&no_bonus_board) * crate::no_bonus_chance();
             (mv, evaluation)
         });
 
@@ -64,8 +63,25 @@ pub trait Engine {
     /// Can be implemented to have certain information logged when a
     /// move is chosen.
     fn log_info(&mut self) {}
+
+    /// Generate both the bonus and no bonus boards for a move. If `checked` is
+    /// true, then `apply_bonus` will be called, but otherwise
+    /// `apply_bonus_unchecked` will be called, which doesn't check for draws.
+    fn next_boards(&self, board: &MyBoard, mv: ChessMove, checked: bool) -> (MyBoard, MyBoard) {
+        let mut new_board = *board; new_board.apply_move(mv);
+        let mut bonus_board = new_board;
+        let mut no_bonus_board = new_board;
+        if checked {
+            bonus_board.apply_bonus(true);
+            no_bonus_board.apply_bonus(false);
+        } else {
+            bonus_board.apply_bonus_unchecked(true);
+            no_bonus_board.apply_bonus_unchecked(false);
+        }
+        (bonus_board, no_bonus_board)
+    }
 }
 
 pub fn default_engine() -> impl Engine {
-    minimax::Minimax::default(proportion_count::ProportionCount::default())
+    alphabeta::AlphaBeta::default(proportion_count::ProportionCount::default())
 }

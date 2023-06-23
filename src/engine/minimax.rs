@@ -36,24 +36,13 @@ impl Minimax {
 
         let scores = board.all_moves().into_iter().map(|mv| {
 
-            let mut new_board = *board; new_board.apply_move(mv);
-
-            let mut bonus_board = new_board;
-            let mut no_bonus_board = new_board;
-
             // At the last layer, we skip the draw check, since it's really
             // rare and also the most expensive part
-            if cutoff == 1 {
-                bonus_board.apply_bonus_unchecked(true);
-                no_bonus_board.apply_bonus_unchecked(false);
-            } else {
-                bonus_board.apply_bonus(true);
-                no_bonus_board.apply_bonus(false);
-            }
+            let (bonus_board, no_bonus_board) = self.next_boards(board, mv, cutoff != 1);
             
             // Assumes the chance of bonus and chance of no bonus
-            self.evaluate_with_cutoff(&bonus_board, cutoff - 1) / 4
-            + (self.evaluate_with_cutoff(&no_bonus_board, cutoff - 1) / 4) * 3
+            self.evaluate_with_cutoff(&bonus_board, cutoff - 1) * crate::bonus_chance()
+            + self.evaluate_with_cutoff(&no_bonus_board, cutoff - 1) * crate::no_bonus_chance()
         });
 
         let score = if matches!(board.get_side_to_move(), Color::White) {
