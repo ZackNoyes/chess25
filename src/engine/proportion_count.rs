@@ -3,7 +3,7 @@ use std::collections::HashMap;
 use chess::{Piece, Color};
 use wasm_bindgen::prelude::wasm_bindgen;
 
-use crate::my_board::{MyBoard, Status};
+use crate::{my_board::{MyBoard, Status}, Score};
 use super::StaticEvaluator;
 
 #[wasm_bindgen]
@@ -30,7 +30,7 @@ impl Default for ProportionCount {
 
 impl StaticEvaluator for ProportionCount {
 
-    fn evaluate(&self, board: &MyBoard) -> f64 {
+    fn evaluate(&self, board: &MyBoard) -> Score {
         
         if !matches!(board.get_status(), Status::InProgress) {
             return self.evaluate_terminal(board).unwrap();
@@ -54,7 +54,7 @@ impl StaticEvaluator for ProportionCount {
         }
 
         let total_value = white_value + black_value;
-        white_value as f64 / total_value as f64
+        Score::from_num(white_value as f32 / total_value as f32)
     }
 
 }

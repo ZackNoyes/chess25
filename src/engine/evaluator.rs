@@ -1,4 +1,4 @@
-use crate::my_board::{MyBoard, Status};
+use crate::{my_board::{MyBoard, Status}, Score};
 use chess::Color;
 
 pub trait StaticEvaluator {
@@ -12,16 +12,16 @@ pub trait StaticEvaluator {
     /// 
     /// That is, it should return the expected value of the position for white,
     /// given that the value of a win is 1 and the value of a draw is 0.5.
-    fn evaluate(&self, board: &MyBoard) -> f64;
+    fn evaluate(&self, board: &MyBoard) -> Score;
 
     /// Returns the evaluation of a terminal game state, or None if the game
     /// is still in progress.
-    fn evaluate_terminal(&self, board: &MyBoard) -> Option<f64> {
+    fn evaluate_terminal(&self, board: &MyBoard) -> Option<Score> {
         match board.get_status() {
             Status::InProgress => None,
-            Status::Win(Color::Black) => Some(0.0),
-            Status::Win(Color::White) => Some(1.0),
-            Status::Draw => Some(0.5),
+            Status::Win(Color::Black) => Some(Score::ZERO),
+            Status::Win(Color::White) => Some(Score::ONE),
+            Status::Draw => Some(Score::from_num(0.5)),
         }
     }
 

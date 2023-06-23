@@ -1,6 +1,6 @@
 use std::{collections::HashMap, hash::Hash};
 
-use crate::my_board::MyBoard;
+use crate::{my_board::MyBoard, Score};
 
 #[derive(Clone, Copy)]
 struct Parameters {
@@ -10,7 +10,7 @@ struct Parameters {
 
 struct Evaluation {
     pub parameters: Parameters,
-    pub score: f64,
+    pub score: Score,
 }
 
 use chess::{Piece, Color, CastleRights};
@@ -59,7 +59,7 @@ impl PositionTable {
 
     /// Insert a board into the position table if we don't already have
     /// something better
-    pub fn insert(&mut self, board: &MyBoard, depth: u8, score: f64) {
+    pub fn insert(&mut self, board: &MyBoard, depth: u8, score: Score) {
         let new_params = Parameters {
             depth,
             dead_moves: board.get_dead_moves(),
@@ -71,7 +71,7 @@ impl PositionTable {
     /// Insert a board into the position table for both colors if we don't
     /// already have something better. This might be useful when the depth
     /// is 0 and so the evaluation is known to be the same for both colors.
-    pub fn insert_both_colors(&mut self, board: &MyBoard, depth: u8, score: f64) {
+    pub fn insert_both_colors(&mut self, board: &MyBoard, depth: u8, score: Score) {
         let new_params = Parameters {
             depth,
             dead_moves: board.get_dead_moves(),
@@ -84,7 +84,7 @@ impl PositionTable {
 
     /// Insert a position and score into the table if the new parameters are
     /// `not_worse_than` the existing parameters.
-    fn insert_position(&mut self, position: Position, params: Parameters, score: f64) {
+    fn insert_position(&mut self, position: Position, params: Parameters, score: Score) {
 
         self.insert_attempts += 1;
         
@@ -108,7 +108,7 @@ impl PositionTable {
 
     /// Get the score of a board if we have an existing evaluation of this
     /// board. Needs to be mutable to update the debug info
-    pub fn get(&mut self, board: &MyBoard, depth: u8) -> Option<f64> {
+    pub fn get(&mut self, board: &MyBoard, depth: u8) -> Option<Score> {
 
         self.get_attempts += 1;
 

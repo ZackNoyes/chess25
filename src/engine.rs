@@ -8,37 +8,38 @@ mod proportion_count;
 mod position_table;
 
 use chess::{ChessMove, Color};
-use crate::{CHANCE_OF_BONUS, CHANCE_OF_NO_BONUS};
+use crate::{Score};
 use crate::my_board::MyBoard;
 use evaluator::StaticEvaluator;
 
 pub trait Engine {
     fn default(static_evaluator: impl StaticEvaluator + 'static) -> Self where Self: Sized;
-    fn evaluate(&mut self, board: &MyBoard) -> f64;
+    fn evaluate(&mut self, board: &MyBoard) -> Score;
 
     fn get_move(&mut self, board: &MyBoard) -> ChessMove {
-
-        // for controlling whether we choose the maximum or the minimum
-        let multiplier =
-            if matches!(board.get_side_to_move(), Color::White) { 1.0 }
-            else { -1.0 };
 
         let move_evaluations = board.all_moves().into_iter().map(|mv| {
             let mut new_board = *board; new_board.apply_move(mv);
             let mut bonus_board = new_board; bonus_board.apply_bonus(true);
             let mut no_bonus_board = new_board; no_bonus_board.apply_bonus(false);
             web_sys::console::log_1(&format!("Considering move {} to {}", mv.get_source(), mv.get_dest()).into());
-            let evaluation =
-                CHANCE_OF_BONUS * self.evaluate(&bonus_board)
-                + CHANCE_OF_NO_BONUS * self.evaluate(&no_bonus_board);
-            (mv, multiplier * evaluation)
+            // Assumes the chance of bonus and chance of no bonus
+            let evaluation = self.evaluate(&bonus_board) / 4
+                + (self.evaluate(&no_bonus_board) / 4) * 3;
+            (mv, evaluation)
         });
 
         // This can be made more efficient, but this helps with debugging
         // The inefficiency is only at the top layer
 
         let mut move_evaluations: Vec<_> = move_evaluations.collect();
-        move_evaluations.sort_by(|(_, a), (_, b)| b.partial_cmp(a).unwrap());
+        move_evaluations.sort_by(|(_, a), (_, b)|
+            if board.get_side_to_move() == Color::White {
+                b.partial_cmp(a).unwrap()
+            } else {
+                a.partial_cmp(b).unwrap()
+            }
+        );
 
         let mut log_string = String::from("Top three moves considered: \n");
 
@@ -49,7 +50,7 @@ pub trait Engine {
                     i,
                     move_evaluations[i].0.get_source(),
                     move_evaluations[i].0.get_dest(),
-                    -move_evaluations[i].1
+                    move_evaluations[i].1
                 )
             );
         }

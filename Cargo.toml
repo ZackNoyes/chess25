@@ -26,6 +26,7 @@ wee_alloc = { version = "0.4.5", optional = true }
 js-sys = "0.3.63"
 chess = "3.2.0"
 web-sys = { version = "0.3.64", features = ["console"] }
+fixed = "1.23.1"
 
 [dev-dependencies]
 wasm-bindgen-test = "0.3.13"

@@ -1,5 +1,5 @@
 
-use crate::my_board::MyBoard;
+use crate::{my_board::MyBoard, Score};
 use super::{Engine, StaticEvaluator};
 
 pub struct Greedy {
@@ -11,7 +11,7 @@ impl Engine for Greedy {
         Greedy { static_evaluator: Box::new(static_evaluator) }
     }
 
-    fn evaluate(&mut self, board: &MyBoard) -> f64 {
+    fn evaluate(&mut self, board: &MyBoard) -> Score {
         self.static_evaluator.evaluate(board)
     }
 }

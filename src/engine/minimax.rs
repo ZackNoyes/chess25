@@ -1,7 +1,7 @@
 
 use chess::Color;
 
-use crate::{CHANCE_OF_BONUS, CHANCE_OF_NO_BONUS};
+use crate::Score;
 use crate::my_board::{MyBoard, Status};
 use super::position_table::{PositionTable};
 use super::{Engine, StaticEvaluator};
@@ -22,7 +22,7 @@ impl Minimax {
         }
     }
 
-    fn evaluate_with_cutoff(&mut self, board: &MyBoard, cutoff: u8) -> f64 {
+    fn evaluate_with_cutoff(&mut self, board: &MyBoard, cutoff: u8) -> Score {
 
         if let Some(score) = self.position_table.get(board, cutoff) {
             return score;
@@ -51,8 +51,9 @@ impl Minimax {
                 no_bonus_board.apply_bonus(false);
             }
             
-            CHANCE_OF_BONUS * self.evaluate_with_cutoff(&bonus_board, cutoff - 1)
-            + CHANCE_OF_NO_BONUS * self.evaluate_with_cutoff(&no_bonus_board, cutoff - 1)
+            // Assumes the chance of bonus and chance of no bonus
+            self.evaluate_with_cutoff(&bonus_board, cutoff - 1) / 4
+            + (self.evaluate_with_cutoff(&no_bonus_board, cutoff - 1) / 4) * 3
         });
 
         let score = if matches!(board.get_side_to_move(), Color::White) {
@@ -73,7 +74,7 @@ impl Engine for Minimax {
         Minimax::new(static_evaluator, 4)
     }
 
-    fn evaluate(&mut self, board: &MyBoard) -> f64 {
+    fn evaluate(&mut self, board: &MyBoard) -> Score {
         let ret = self.evaluate_with_cutoff(&board, self.lookahead - 1);
         web_sys::console::log_1(&self.position_table.info().into());
         self.position_table.reset_debug_info();
