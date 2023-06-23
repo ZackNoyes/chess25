@@ -1,8 +1,9 @@
 
 use crate::{my_board::MyBoard, Score};
 
-// 2^27 is the maximum we can get with Vec's allocation
-// I've scaled it down a bit since hte allocation does take quite a while,
+// 2^27 is the maximum we can get with Vec's allocation (ends up as 1.61 GB for
+// 12-byte elements)
+// I've scaled it down a bit since the allocation does take quite a while,
 // especially with the debug build
 const TABLE_SIZE: usize = 1 << 23;
 
@@ -14,6 +15,7 @@ struct Parameters {
 
 #[derive(Clone, Copy)]
 struct Evaluation {
+    pub position: Position,
     pub parameters: Parameters,
     pub score: Score,
 }
@@ -29,7 +31,8 @@ use chess::{Piece, Color, CastleRights};
 /// 
 /// Note that en passant is not implemented, so it isn't included in the state
 #[derive(Clone, Copy, PartialEq, Eq)]
-struct Position {
+struct Position { // TODO: try reordering these for equality speed
+    // TODO: Compress this data structure
     zobrist_hash: u64,
     pieces: [Option<(Piece, Color)>; 64],
     castle_rights: [CastleRights; 2],
@@ -55,7 +58,8 @@ impl PositionTable {
     pub fn new() -> PositionTable {
         let table = vec![None; TABLE_SIZE].into_boxed_slice();
         web_sys::console::log_1(&format!(
-            "Position table size: {} MB",
+            "Position table of {} elements (each {} bytes) allocated. Total size {} MB",
+            table.len(), std::mem::size_of::<Option<Evaluation>>(),
             table.len() * std::mem::size_of::<Option<Evaluation>>() / 1000000
         ).into());
         PositionTable {
@@ -114,6 +118,7 @@ impl PositionTable {
             },
         } {
             self.table[position.as_index()] = Some(Evaluation {
+                position: position,
                 parameters: params,
                 score,
             });
@@ -134,10 +139,18 @@ impl PositionTable {
         let pos = Position::from_board(&board);
 
         match self.table[pos.as_index()] {
-            Some(evaluation) if evaluation.parameters.better_than(&params) => { // TODO: Incorrect retrievals
+            // The position is different, so we can't use the evaluation
+            Some(evaluation) if evaluation.position != pos => {
+                self.get_incorrects += 1;
+                None
+            },
+            // The position is the same and the parameters are the same or
+            // better, so we can use the evaluation
+            Some(evaluation) if evaluation.parameters.better_than(&params) => {
                 self.get_hits += 1;
                 Some(evaluation.score)
             },
+            // There is nothing in the table
             _ => {
                 self.get_blanks += 1;
                 None
