@@ -8,7 +8,7 @@ mod proportion_count;
 mod position_table;
 
 use chess::{ChessMove, Color};
-use crate::{Score};
+use crate::Score;
 use crate::my_board::MyBoard;
 use evaluator::StaticEvaluator;
 
@@ -22,7 +22,6 @@ pub trait Engine {
             let mut new_board = *board; new_board.apply_move(mv);
             let mut bonus_board = new_board; bonus_board.apply_bonus(true);
             let mut no_bonus_board = new_board; no_bonus_board.apply_bonus(false);
-            web_sys::console::log_1(&format!("Considering move {} to {}", mv.get_source(), mv.get_dest()).into());
             // Assumes the chance of bonus and chance of no bonus
             let evaluation = self.evaluate(&bonus_board) / 4
                 + (self.evaluate(&no_bonus_board) / 4) * 3;
@@ -40,6 +39,8 @@ pub trait Engine {
                 a.partial_cmp(b).unwrap()
             }
         );
+
+        self.log_info();
 
         let mut log_string = String::from("Top three moves considered: \n");
 
@@ -59,6 +60,10 @@ pub trait Engine {
 
         move_evaluations[0].0
     }
+
+    /// Can be implemented to have certain information logged when a
+    /// move is chosen.
+    fn log_info(&mut self) {}
 }
 
 pub fn default_engine() -> impl Engine {

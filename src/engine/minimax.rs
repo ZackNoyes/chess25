@@ -70,14 +70,18 @@ impl Minimax {
 }
 
 impl Engine for Minimax {
+
     fn default(static_evaluator: impl StaticEvaluator + 'static) -> Self {
         Minimax::new(static_evaluator, 4)
     }
 
     fn evaluate(&mut self, board: &MyBoard) -> Score {
-        let ret = self.evaluate_with_cutoff(&board, self.lookahead - 1);
+        self.evaluate_with_cutoff(&board, self.lookahead - 1)
+    }
+
+    fn log_info(&mut self) {
         web_sys::console::log_1(&self.position_table.info().into());
         self.position_table.reset_debug_info();
-        ret
     }
+
 }
