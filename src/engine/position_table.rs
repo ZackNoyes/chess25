@@ -1,8 +1,7 @@
 
 use crate::{my_board::MyBoard, Score};
 
-// 2^27 is the maximum we can get with Vec's allocation (ends up as 1.61 GB for
-// 12-byte elements)
+// 2^27 is the maximum we can get with Vec's allocation
 // I've scaled it down a bit since the allocation does take quite a while,
 // especially with the debug build
 const TABLE_SIZE: usize = 1 << 23;
@@ -20,23 +19,17 @@ struct Evaluation {
     pub score: Score,
 }
 
-use chess::{Piece, Color, CastleRights};
-
-/// A position is a representation of a game state. It contains the necessary
-/// information to distinguish the state from other states, with the exception
-/// of the number of dead moves.
+/// A position simply stores a hash of the board, which is considered to
+/// represent the board state. We ignore the possibility of hash collisions
+/// since it's unlikely, as per https://craftychess.com/hyatt/collisions.html.
 /// 
-/// That is, it contains the positions of all pieces, the castling rights, and
-/// the side to move.
+/// The type could be extended with extra information to allow more thorough
+/// checking.
 /// 
 /// Note that en passant is not implemented, so it isn't included in the state
-#[derive(Clone, Copy, PartialEq, Eq)]
-struct Position { // TODO: try reordering these for equality speed
-    // TODO: Compress this data structure
+#[derive(Clone, Copy, PartialEq, Eq, Debug)]
+struct Position {
     zobrist_hash: u64,
-    pieces: [Option<(Piece, Color)>; 64],
-    castle_rights: [CastleRights; 2],
-    side_to_move: Color,
 }
 
 pub struct PositionTable {
@@ -63,7 +56,7 @@ impl PositionTable {
             table.len() * std::mem::size_of::<Option<Evaluation>>() / 1000000
         ).into());
         PositionTable {
-            table: table,
+            table,
             items: 0,
             insert_attempts: 0,
             insert_additions: 0,
@@ -221,15 +214,11 @@ impl Parameters {
 impl Position {
     pub fn from_board(board: &MyBoard) -> Position {
         Position {
-            pieces: board.get_pieces(),
-            castle_rights: board.get_castle_rights_arr(),
-            side_to_move: board.get_side_to_move(),
             zobrist_hash: board.get_zobrist_hash(),
         }
     }
     pub fn switch_side_to_move(&mut self) {
         self.zobrist_hash ^= crate::zobrist::Zobrist::color();
-        self.side_to_move = !self.side_to_move;
     }
     pub fn as_index(&self) -> usize {
         self.zobrist_hash as usize % TABLE_SIZE
