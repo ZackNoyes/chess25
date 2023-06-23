@@ -6,7 +6,7 @@ use chess::{
 };
 use crate::zobrist::Zobrist;
 
-#[derive(Copy, Clone)]
+#[derive(Copy, Clone, Debug)]
 pub struct MyBoard {
     pieces: [Option<(Piece, Color)>; 64],
     side_to_move: Color,
@@ -19,7 +19,7 @@ pub struct MyBoard {
     zobrist_hash: u64,
 }
 
-#[derive(Copy, Clone)]
+#[derive(Copy, Clone, Debug)]
 pub enum Status {
     InProgress,
     Win(Color),

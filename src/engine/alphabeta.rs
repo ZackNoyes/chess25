@@ -11,7 +11,7 @@ use super::position_table::PositionTable;
 pub struct AlphaBeta {
     static_evaluator: Box<dyn StaticEvaluator>,
     lookahead: u8,
-    position_table: PositionTable<Bounds>,
+    position_table: PositionTable<ScoreInfo>,
 }
 
 /// Bounds for the possible evaluations for a move. The bounds are exclusive
@@ -97,9 +97,60 @@ impl Bounds {
             if score < max { self.max = Some(score); }
         } else { self.max = Some(score); }
     }
+    fn info_too_low(self, score_info: ScoreInfo) -> bool {
+        if let Some(min) = self.min {
+            if score_info.max <= min { return true; }
+        }
+        false
+    }
+    fn info_too_high(self, score_info: ScoreInfo) -> bool {
+        if let Some(max) = self.max {
+            if score_info.min >= max { return true; }
+        }
+        false
+    }
+    fn update(&mut self, score_info: ScoreInfo) {
+        // Some trickery needed here since the `ScoreInfo` bounds are inclusive
+        if score_info.min != ZERO {
+            self.update_min(score_info.min.checked_sub(DELTA).expect(
+                "non-zero minus delta should not underflow"
+            ));
+        }
+        if score_info.max != ONE {
+            self.update_max(score_info.max.checked_add(DELTA).expect(
+                "non-one plus delta should not overflow"
+            ));
+        }
+    }
+}
+
+/// Stores a pair of bounds for the score of a given position. Unlike `Bounds`,
+/// the bounds are inclusive on both sides, so `ZERO` and `ONE` can be used for
+/// the min and max bounds.
+/// 
+/// This is used in the position table to store the results of the search.
+#[derive(Clone, Copy)]
+struct ScoreInfo {
+    min: Score,
+    max: Score,
+}
+impl ScoreInfo {
+    fn actual_score(self) -> Option<Score> {
+        if self.min == self.max { Some(self.min) } else { None }
+    }
+    fn from_score(score: Score) -> Self {
+        ScoreInfo { min: score, max: score }
+    }
+    fn from_min_score(min: Score) -> Self {
+        ScoreInfo { min, max: ONE }
+    }
+    fn from_max_score(max: Score) -> Self {
+        ScoreInfo { min: ZERO, max }
+    }
 }
 
 use SearchResult::*;
+#[derive(Debug)]
 pub enum SearchResult {
     /// A score, optionally with a move that leads to that score.
     /// Most of the time, the move will be `None`, but it will be `Some` at the top
@@ -130,18 +181,38 @@ impl AlphaBeta {
     /// returned. In this case, the result's `score` is guaranteed to be within
     /// the bounds.
     /// 
-    /// The `Result` will have a `None` move if `depth` is 0, otherwise it will
-    /// contain the move that led to that score.
+    /// - If `depth` is 0, then the `Move` will not be contained in the result
+    /// - If `depth` is `self.lookahead`, then the `Move` will be contained in
+    ///     the result
+    /// - Otherwise, the `Move` may or may not be contained in the result
+    ///     depending on whether the evaluation came from the position table
     fn get_scored_best_move(&mut self, board: &MyBoard, bounds: Bounds, depth: u8) -> SearchResult {
         assert!(bounds.valid());
         let mut bounds = bounds;
 
-        // TODO: Check Position Table
+
+        // Check if there is an existing entry in the position table
+        if let Some(score_info) = self.position_table.get(board, depth) {
+            if bounds.info_too_low(score_info) { return Low; }
+            else if bounds.info_too_high(score_info) { return High; }
+            else if let Some(score) = score_info.actual_score() {
+                if depth != self.lookahead {
+                    return Result(score, None);
+                } else {
+                    // Unfortunately we can't use the table for the root,
+                    // since it doesn't contain the move required
+                    bounds.update(score_info);
+                }
+            } else {
+                bounds.update(score_info);
+            }
+        }
 
         if depth == 0 || !matches!(board.get_status(), Status::InProgress) {
             let evaluation = self.static_evaluator.evaluate(board);
-            
-            // TODO: Insert into Position Table
+
+            self.position_table.insert(
+                board, depth, ScoreInfo::from_score(evaluation));
 
             return
                 if bounds.score_too_low(evaluation) { Low }
@@ -152,7 +223,7 @@ impl AlphaBeta {
         let is_maxing = matches!(board.get_side_to_move(), White);
         let mut best_result = None;
 
-        for mv in board.all_moves() { // TODO: order moves
+        for mv in board.all_moves() { // TODO: order moves (or iterative deepening)
             
             let (b_board, nb_board) = self.next_boards(board, mv, depth != 1);
 
@@ -165,22 +236,30 @@ impl AlphaBeta {
             
             let nb_result = self.get_scored_best_move(&nb_board, nb_bounds, depth - 1);
             
-            // Determine a probability weighted score for this move
-            let score = if let Result(nb_score, _) = nb_result {
+            // Determine a probability weighted score for this move, or a prune
+            let result = if let Result(nb_score, _) = nb_result {
                 let b_bounds = bounds
                     .both_decreased_by(nb_score * crate::no_bonus_chance())
                     .expanded(crate::bonus_chance());
                 let b_result = self.get_scored_best_move(&b_board, b_bounds, depth - 1);
                 if let Result(b_score, _) = b_result {
-                    b_score * crate::bonus_chance()
-                    + nb_score * crate::no_bonus_chance()
-                } else {
-                    if is_maxing == matches!(b_result, Low) { continue; }
-                    else { return if is_maxing { High } else { Low } }
+                    Result(
+                        b_score * crate::bonus_chance()
+                        + nb_score * crate::no_bonus_chance(),
+                    None)
+                } else { b_result }
+            } else { nb_result };
+
+            // Set `score` to be the actual score, unless it was a prune, in
+            // which case we either continue or return, depending on the
+            // direction of the prune
+            let Result(score, _) = result else {
+                if is_maxing == matches!(result, Low) { continue; }
+                else {
+                    let res = if is_maxing { High } else { Low };
+                    self.update_table_for_result(board, depth, bounds, &res);
+                    return res;
                 }
-            } else {
-                if is_maxing == matches!(nb_result, Low) { continue; }
-                else { return if is_maxing { High } else { Low } }
             };
 
             assert!(bounds.contains(score), "bounds should contain score \
@@ -204,13 +283,32 @@ impl AlphaBeta {
 
         }
 
-        // TODO: Insert into Position Table
-
-        if let Some((score, mv)) = best_result {
+        let res = if let Some((score, mv)) = best_result {
             Result(score, Some(mv))
         } else {
-            return if is_maxing { Low } else { High };
-        }
+            if is_maxing { Low } else { High }
+        };
+        self.update_table_for_result(board, depth, bounds, &res);
+        res
+    }
+
+    fn update_table_for_result(&mut self,
+        board: &MyBoard, depth: u8, bounds: Bounds, result: &SearchResult
+    ) {
+        // We don't do anything fancy by merging the new result with the old
+        // since bugs can arise from that due to the fact that the new result
+        // might be referencing table entries which the old result couldn't.
+        // This could lead to incompatible ranges.
+        let new = match result {
+            Result(score, _) => ScoreInfo::from_score(*score),
+            Low => ScoreInfo::from_max_score(bounds.min.expect("
+                shouldn't return Low if there is no minimum bound
+            ")),
+            High => ScoreInfo::from_min_score(bounds.max.expect("
+                shouldn't return High if there is no maximum bound
+            ")),
+        };
+        self.position_table.insert(board, depth, new);
     }
 
 }
