@@ -246,10 +246,24 @@ impl AlphaBeta {
         let is_maxing = matches!(board.get_side_to_move(), White);
         let mut best_result = None;
 
-        let moves = board.all_moves();
+        let mut moves = board.all_moves();
         let n_moves = moves.len() as u64;
 
-        for (i, mv) in moves.into_iter().enumerate() { // TODO: order moves (or iterative deepening)
+        if depth > 1 {
+
+            // sort_by_cached_key was faster than sort_unstable_by_key
+            // after a few tests, so we use that
+            moves.sort_by_cached_key(|mv| {
+                let (_, nb_board) = self.next_boards(board, *mv, false);
+                // TODO: Fix the effect this has on the logging
+                let Result(eval, _) = self.get_scored_best_move(&nb_board, Bounds::widest(), 0)
+                    else { panic!("should not prune with the widest bounds"); };
+                if is_maxing { ONE - eval } else { eval }
+            });
+
+        }
+
+        for (i, mv) in moves.into_iter().enumerate() {
             
             let (b_board, nb_board) = self.next_boards(board, mv, depth != 1);
 
