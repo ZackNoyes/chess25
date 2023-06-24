@@ -17,6 +17,8 @@ pub struct AlphaBeta {
     // Debug info
     rounding_errors: u32,
     branch_info: Vec<BranchInfo>,
+    iter_deep_failures: u32,
+    iter_deep_lookups: u32,
 }
 
 /// Bounds for the possible evaluations for a move. The bounds are exclusive
@@ -121,7 +123,7 @@ impl Bounds {
 /// the min and max bounds.
 /// 
 /// This is used in the position table to store the results of the search.
-#[derive(Clone, Copy)]
+#[derive(Clone, Copy, Debug)]
 struct ScoreInfo {
     min: Score,
     max: Score,
@@ -188,6 +190,8 @@ impl AlphaBeta {
             position_table: PositionTable::new(),
             rounding_errors: 0,
             branch_info: vec![BranchInfo::new(); lookahead as usize + 1],
+            iter_deep_failures: 0,
+            iter_deep_lookups: 0,
         }
     }
 
@@ -204,6 +208,11 @@ impl AlphaBeta {
     ///     the result
     /// - Otherwise, the `Move` may or may not be contained in the result
     ///     depending on whether the evaluation came from the position table
+    /// 
+    /// TODO: There are many more optimisations that could be done here. Areas
+    /// to look at would be why the iterdeep version is slower than the normal
+    /// version in ordinary cases. Perhaps a heuristic improvement would help
+    /// the ordering.
     fn get_scored_best_move(&mut self, board: &MyBoard, bounds: Bounds, depth: u8) -> SearchResult {
         assert!(bounds.valid());
         let mut bounds = bounds;
@@ -254,20 +263,23 @@ impl AlphaBeta {
             // sort_by_cached_key was faster than sort_unstable_by_key
             // after a few tests, so we use that
             moves.sort_by_cached_key(|mv| {
+
+                self.iter_deep_lookups += 1;
+
                 let (_, nb_board) = self.next_boards(board, *mv, false);
 
                 let mut key = None;
-                
+
                 if let Some(info) = self.position_table.get_lenient(&nb_board) {
                     if let Some(score) = info.actual_score() {
                         key = Some(score);
                     }
                 }
                 
-                let key = key.unwrap_or({
-                    // TODO: log occurrences of this
+                let key = key.unwrap_or_else(|| {
+                    self.iter_deep_failures += 1;
                     let eval = self.static_evaluator.evaluate(&nb_board);
-                    self.position_table.insert(&nb_board, 0, ScoreInfo::from_score(eval));
+                    self.position_table.insert_both_colors(&nb_board, 0, ScoreInfo::from_score(eval));
                     eval
                 });
 
@@ -278,27 +290,41 @@ impl AlphaBeta {
 
         for (i, mv) in moves.into_iter().enumerate() {
             
-            let (b_board, nb_board) = self.next_boards(board, mv, depth != 1);
+            let (b_board, nb_board) = self.next_boards(board, mv, depth > 1);
+
+            let mut b_chance = crate::bonus_chance();
+            let mut nb_chance = crate::no_bonus_chance();
+            let adjustment = Score::from_num(
+                (b_board.get_black_pieces() & b_board.get_black_pieces())
+                .count() / 200
+            );
+            if is_maxing {
+                b_chance += adjustment;
+                nb_chance -= adjustment;
+            } else {
+                b_chance -= adjustment;
+                nb_chance += adjustment;
+            }
 
             // Calculate the implied bounds on the no-bonus branch, assuming
             // a worst-case scenario for the bonus branch at both sides of the
             // bound.
             let nb_bounds = bounds
-                .min_decreased_by(crate::bonus_chance())
-                .expanded(crate::no_bonus_chance());
+                .min_decreased_by(b_chance)
+                .expanded(nb_chance);
             
             let nb_result = self.get_scored_best_move(&nb_board, nb_bounds, depth - 1);
             
             // Determine a probability weighted score for this move, or a prune
             let result = if let Result(nb_score, _) = nb_result {
                 let b_bounds = bounds
-                    .both_decreased_by(nb_score * crate::no_bonus_chance())
-                    .expanded(crate::bonus_chance());
+                    .both_decreased_by(nb_score * nb_chance)
+                    .expanded(b_chance);
                 let b_result = self.get_scored_best_move(&b_board, b_bounds, depth - 1);
                 if let Result(b_score, _) = b_result {
                     let score =
-                        b_score * crate::bonus_chance()
-                        + nb_score * crate::no_bonus_chance();
+                        b_score * b_chance
+                        + nb_score * nb_chance;
                     if !bounds.contains(score) {
                         self.rounding_errors += 1;
                         if Some(score) == bounds.min { Low }
@@ -429,7 +455,7 @@ impl AlphaBeta {
             }
 
             s.push_str(&format!("\t\t{} ({}%) were expanded\n",
-                e, (e*100) / t));
+                e, (e * 100) / t));
             s.push_str(&format!("\t\t{} ({}%) were resolved with a table lookup\n",
                 l, (l * 100) / t));
             s.push_str(&format!("\t\t{} ({}%) were pruned\n",
@@ -459,21 +485,53 @@ impl Engine for AlphaBeta {
     }
 
     fn get_move(&mut self, board: &MyBoard) -> ChessMove {
+        web_sys::console::time_with_label("move calculation");
+
+        for depth in 1..self.lookahead {
+
+            web_sys::console::time_with_label(&format!("depth {}", depth));
+
+            self.iter_deep_lookups = 0;
+            self.iter_deep_failures = 0;
+
+            let s = match
+                self.get_scored_best_move(board, Bounds::widest(), depth)
+            {
+                Result(s, _) => s,
+                _ => panic!("pruning should not happen with the widest bounds"),
+            };
+            
+            web_sys::console::log_1(&format!("\
+                depth {}: score {}\n\t{}/{} ({}%) lookup failures",
+                depth, s, self.iter_deep_failures, self.iter_deep_lookups,
+                (self.iter_deep_failures * 100) / (self.iter_deep_lookups + 1)
+            ).into());
+
+            web_sys::console::time_end_with_label(&format!("depth {}", depth));
+
+        }
+
         self.position_table.reset_debug_info();
         self.rounding_errors = 0;
         self.reset_prune_statistics();
-        web_sys::console::time_with_label("calculating best move");
+
+        web_sys::console::time_with_label(&format!("depth {} (final)", self.lookahead));
+        
         let mv = match
             self.get_scored_best_move(board, Bounds::widest(), self.lookahead)
         {
             Result(_, mv) => mv.expect("move should be returned at top level"),
             _ => panic!("pruning should not happen with the widest bounds"),
         };
-        web_sys::console::time_end_with_label("calculating best move");
+        
+        web_sys::console::time_end_with_label(&format!("depth {} (final)", self.lookahead));
+        web_sys::console::time_end_with_label("move calculation");
+        
         self.log_info();
-        web_sys::console::time_with_label("generating reasoning");
+        web_sys::console::time_with_label("reasoning generation");
         web_sys::console::log_1(&self.get_line(board));
-        web_sys::console::time_end_with_label("generating reasoning");
+        web_sys::console::time_end_with_label("reasoning generation");
+        
         mv
     }
 

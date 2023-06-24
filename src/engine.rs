@@ -68,7 +68,7 @@ pub trait Engine {
     /// true, then `apply_bonus` will be called, but otherwise
     /// `apply_bonus_unchecked` will be called, which doesn't check for draws.
     fn next_boards(&self, board: &MyBoard, mv: ChessMove, checked: bool) -> (MyBoard, MyBoard) {
-        let mut new_board = *board; new_board.apply_move(mv);
+        let mut new_board = *board; new_board.apply_move_unchecked(mv);
         let mut bonus_board = new_board;
         let mut no_bonus_board = new_board;
         if checked {

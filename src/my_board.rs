@@ -150,6 +150,10 @@ impl MyBoard {
 
     pub fn apply_move(&mut self, m: ChessMove) {
         assert!(self.moves_from(m.get_source()).contains(&m));
+        self.apply_move_unchecked(m);
+    }
+
+    pub fn apply_move_unchecked(&mut self, m: ChessMove) {
         assert!(!self.awaiting_bonus); self.awaiting_bonus = true;
 
         let (p, c) = self[m.get_source()].expect("No piece at source");
