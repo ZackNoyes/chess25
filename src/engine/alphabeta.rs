@@ -147,7 +147,7 @@ pub enum SearchResult {
     /// A score, optionally with a move that leads to that score.
     /// Most of the time, the move will be `None`, but it will be `Some` at the top
     /// level of the search tree.
-    Result(Score, Option<ChessMove>), // TODO: space-optimise with the option
+    Result(Score, Option<ChessMove>),
     /// The evaluation of the score is lower than the lower bound
     Low,
     /// The evaluation of the score is higher than the upper bound
@@ -255,10 +255,23 @@ impl AlphaBeta {
             // after a few tests, so we use that
             moves.sort_by_cached_key(|mv| {
                 let (_, nb_board) = self.next_boards(board, *mv, false);
-                // TODO: Fix the effect this has on the logging
-                let Result(eval, _) = self.get_scored_best_move(&nb_board, Bounds::widest(), 0)
-                    else { panic!("should not prune with the widest bounds"); };
-                if is_maxing { ONE - eval } else { eval }
+
+                let mut key = None;
+                
+                if let Some(info) = self.position_table.get_lenient(&nb_board) {
+                    if let Some(score) = info.actual_score() {
+                        key = Some(score);
+                    }
+                }
+                
+                let key = key.unwrap_or({
+                    // TODO: log occurrences of this
+                    let eval = self.static_evaluator.evaluate(&nb_board);
+                    self.position_table.insert(&nb_board, 0, ScoreInfo::from_score(eval));
+                    eval
+                });
+
+                if is_maxing { ONE - key } else { key }
             });
 
         }

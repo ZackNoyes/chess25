@@ -157,6 +157,21 @@ impl<S: Copy> PositionTable<S> {
         }
     }
 
+    /// Get the score of a board if we have an existing evaluation of it.
+    /// It doesn't matter what the depth was in the evaluation, or what the
+    /// dead moves were. This is used in the iterative deepening process for
+    /// move ordering.
+    /// 
+    /// This board. This version doesn't update the debug info.
+    pub fn get_lenient(&self, board: &MyBoard) -> Option<S> {
+        let pos = Position::from_board(&board);
+        match self.table[pos.as_index()] {
+            Some(evaluation) if evaluation.position == pos =>
+                Some(evaluation.score),
+            _ => None,
+        }
+    }
+
     pub fn info(&self) -> String {
         format!("Position table with {}/{} entries ({}% full):\n\
             \tTotal insert attempts: {}\n\
