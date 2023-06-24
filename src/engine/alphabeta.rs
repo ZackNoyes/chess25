@@ -339,7 +339,7 @@ impl Engine for AlphaBeta {
     fn log_info(&mut self) {
         web_sys::console::log_1(&self.position_table.info().into());
         self.position_table.reset_debug_info();
-        web_sys::console::log_1(&format!("rounding errors: {}", self.rounding_errors).into());
+        web_sys::console::log_1(&format!("detected {} rounding errors", self.rounding_errors).into());
         self.rounding_errors = 0;
     }
 
