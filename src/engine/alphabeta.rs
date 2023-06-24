@@ -12,6 +12,8 @@ pub struct AlphaBeta {
     static_evaluator: Box<dyn StaticEvaluator>,
     lookahead: u8,
     position_table: PositionTable<ScoreInfo>,
+    // Debug info
+    rounding_errors: u32,
 }
 
 /// Bounds for the possible evaluations for a move. The bounds are exclusive
@@ -157,6 +159,7 @@ impl AlphaBeta {
             static_evaluator: Box::new(static_evaluator),
             lookahead,
             position_table: PositionTable::new(),
+            rounding_errors: 0,
         }
     }
 
@@ -232,10 +235,17 @@ impl AlphaBeta {
                     .expanded(crate::bonus_chance());
                 let b_result = self.get_scored_best_move(&b_board, b_bounds, depth - 1);
                 if let Result(b_score, _) = b_result {
-                    Result(
+                    let score =
                         b_score * crate::bonus_chance()
-                        + nb_score * crate::no_bonus_chance(),
-                    None)
+                        + nb_score * crate::no_bonus_chance();
+                    if !bounds.contains(score) {
+                        self.rounding_errors += 1;
+                        if Some(score) == bounds.min { Low }
+                        else if Some(score) == bounds.max { High }
+                        else { panic!("score is distinctly out of bounds"); }
+                    } else {
+                        Result(score, None)
+                    }
                 } else { b_result }
             } else { nb_result };
 
@@ -252,7 +262,7 @@ impl AlphaBeta {
             };
 
             assert!(bounds.contains(score), "bounds should contain score \
-                because of the constructed bounds on nb_score and b_score");
+                because of the bounds on nb_score and b_score");
 
             // Update the bounds with this new result
             if is_maxing { bounds.update_min(score); }
@@ -329,6 +339,8 @@ impl Engine for AlphaBeta {
     fn log_info(&mut self) {
         web_sys::console::log_1(&self.position_table.info().into());
         self.position_table.reset_debug_info();
+        web_sys::console::log_1(&format!("rounding errors: {}", self.rounding_errors).into());
+        self.rounding_errors = 0;
     }
 
 }
