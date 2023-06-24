@@ -16,6 +16,7 @@ pub struct AlphaBeta {
     position_table: PositionTable<ScoreInfo>,
     // Debug info
     rounding_errors: u32,
+    branch_info: Vec<BranchInfo>,
 }
 
 /// Bounds for the possible evaluations for a move. The bounds are exclusive
@@ -153,6 +154,21 @@ pub enum SearchResult {
     High,
 }
 
+/// A way to record statistics about the search. This represents the information
+/// for a certain depth.
+/// - `not_pruned` is the number of nodes that were actually searched at a
+///   certain depth.
+///   - `expanded` is the number of nodes (of the `not_pruned` nodes) that were
+///      actually expanded (rather than being resolved by a table lookup).
+///  - `pruned` is the number of nodes that were never searched for a given
+///    depth, because the were pruned.
+#[derive(Clone, Copy)]
+struct BranchInfo {
+    pub not_pruned: u64,
+    pub expanded: u64,
+    pub pruned: u64,
+}
+
 impl AlphaBeta {
 
     pub fn new(static_evaluator: impl StaticEvaluator + 'static, lookahead: u8) -> Self {
@@ -162,6 +178,10 @@ impl AlphaBeta {
             lookahead,
             position_table: PositionTable::new(),
             rounding_errors: 0,
+            branch_info: vec![
+                BranchInfo { not_pruned: 0, pruned: 0, expanded: 0 };
+                lookahead as usize + 1
+            ],
         }
     }
 
@@ -182,6 +202,7 @@ impl AlphaBeta {
         assert!(bounds.valid());
         let mut bounds = bounds;
 
+        self.branch_info[depth as usize].not_pruned += 1;
 
         // Check if there is an existing entry in the position table
         if let Some(score_info) = self.position_table.get(board, depth) {
@@ -202,6 +223,8 @@ impl AlphaBeta {
             // in an incorrectly returned prune. So we don't do that.
         }
 
+        self.branch_info[depth as usize].expanded += 1;
+
         if depth == 0 || !matches!(board.get_status(), Status::InProgress) {
             let evaluation = self.static_evaluator.evaluate(board);
 
@@ -217,7 +240,10 @@ impl AlphaBeta {
         let is_maxing = matches!(board.get_side_to_move(), White);
         let mut best_result = None;
 
-        for mv in board.all_moves() { // TODO: order moves (or iterative deepening)
+        let moves = board.all_moves();
+        let n_moves = moves.len() as u64;
+
+        for (i, mv) in moves.into_iter().enumerate() { // TODO: order moves (or iterative deepening)
             
             let (b_board, nb_board) = self.next_boards(board, mv, depth != 1);
 
@@ -259,6 +285,8 @@ impl AlphaBeta {
                 else {
                     let res = if is_maxing { High } else { Low };
                     self.update_table_for_result(board, depth, bounds, &res);
+                    let num_pruned = n_moves - (i as u64) - 1;
+                    self.branch_info[depth as usize - 1].pruned += num_pruned;
                     return res;
                 }
             };
@@ -344,12 +372,44 @@ impl AlphaBeta {
         line
     }
 
+    fn prune_statistics(&self) -> String {
+        let mut s = String::new();
+        
+        s.push_str(&format!("Pruning statistics:\n"));
+
+        for depth in (0..self.lookahead as usize + 1).rev() {
+        
+            let np = self.branch_info[depth].not_pruned;
+            let p = self.branch_info[depth].pruned;
+            let e = self.branch_info[depth].expanded;
+            let t = np + p;
+            let l = np - e;
+
+            if depth == self.lookahead as usize {
+                s.push_str(&format!("\tDepth {} (root) had {} nodes:\n",
+                    depth, t));
+            } else {
+                s.push_str(&format!("\tDepth {} had {} nodes (avg. branching factor of {}):\n",
+                    depth, t, t / self.branch_info[depth + 1].expanded));
+            }
+
+            s.push_str(&format!("\t\t{} ({}%) were expanded\n",
+                e, (e*100) / t));
+            s.push_str(&format!("\t\t{} ({}%) were resolved with a table lookup\n",
+                l, (l * 100) / t));
+            s.push_str(&format!("\t\t{} ({}%) were pruned\n",
+                p, (p * 100) / t));
+        }
+        
+        s
+    }
+
 }
 
 impl Engine for AlphaBeta {
 
     fn default(static_evaluator: impl StaticEvaluator + 'static) -> Self {
-        AlphaBeta::new(static_evaluator, 5)
+        AlphaBeta::new(static_evaluator, 4)
     }
 
     fn evaluate(&mut self, board: &MyBoard) -> Score {
@@ -359,13 +419,15 @@ impl Engine for AlphaBeta {
         }
     }
 
-    fn get_move(&mut self, board: &MyBoard) -> ChessMove { // TODO: add more debug info
+    fn get_move(&mut self, board: &MyBoard) -> ChessMove {
+        web_sys::console::time_with_label("calculating best move");
         let mv = match
             self.get_scored_best_move(board, Bounds::widest(), self.lookahead)
         {
             Result(_, mv) => mv.expect("move should be returned at top level"),
             _ => panic!("pruning should not happen with the widest bounds"),
         };
+        web_sys::console::time_end_with_label("calculating best move");
         self.log_info();
         web_sys::console::time_with_label("generating reasoning");
         web_sys::console::log_1(&self.get_line(board));
@@ -378,6 +440,7 @@ impl Engine for AlphaBeta {
         self.position_table.reset_debug_info();
         web_sys::console::log_1(&format!("detected {} rounding errors", self.rounding_errors).into());
         self.rounding_errors = 0;
+        web_sys::console::log_1(&self.prune_statistics().into());
     }
 
 }
