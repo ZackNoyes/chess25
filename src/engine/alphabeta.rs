@@ -168,6 +168,15 @@ struct BranchInfo {
     pub expanded: u64,
     pub pruned: u64,
 }
+impl BranchInfo {
+    fn new() -> Self {
+        BranchInfo {
+            not_pruned: 0,
+            expanded: 0,
+            pruned: 0,
+        }
+    }
+}
 
 impl AlphaBeta {
 
@@ -178,10 +187,7 @@ impl AlphaBeta {
             lookahead,
             position_table: PositionTable::new(),
             rounding_errors: 0,
-            branch_info: vec![
-                BranchInfo { not_pruned: 0, pruned: 0, expanded: 0 };
-                lookahead as usize + 1
-            ],
+            branch_info: vec![BranchInfo::new(); lookahead as usize + 1],
         }
     }
 
@@ -372,13 +378,15 @@ impl AlphaBeta {
         line
     }
 
-    fn prune_statistics(&self) -> String {
+    fn prune_statistics(&mut self) -> String {
         let mut s = String::new();
         
         s.push_str(&format!("Pruning statistics:\n"));
 
         for depth in (0..self.lookahead as usize + 1).rev() {
         
+            let d = self.lookahead as usize - depth;
+
             let np = self.branch_info[depth].not_pruned;
             let p = self.branch_info[depth].pruned;
             let e = self.branch_info[depth].expanded;
@@ -387,10 +395,10 @@ impl AlphaBeta {
 
             if depth == self.lookahead as usize {
                 s.push_str(&format!("\tDepth {} (root) had {} nodes:\n",
-                    depth, t));
+                    d, t));
             } else {
                 s.push_str(&format!("\tDepth {} had {} nodes (avg. branching factor of {}):\n",
-                    depth, t, t / self.branch_info[depth + 1].expanded));
+                    d, t, t / self.branch_info[depth + 1].expanded));
             }
 
             s.push_str(&format!("\t\t{} ({}%) were expanded\n",
@@ -400,6 +408,8 @@ impl AlphaBeta {
             s.push_str(&format!("\t\t{} ({}%) were pruned\n",
                 p, (p * 100) / t));
         }
+
+        self.branch_info = vec![BranchInfo::new(); self.lookahead as usize + 1];
         
         s
     }
