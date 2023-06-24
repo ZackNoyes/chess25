@@ -292,6 +292,10 @@ impl AlphaBeta {
             
             let (b_board, nb_board) = self.next_boards(board, mv, depth > 1);
 
+            // Define the bonus and non-bonus chances in an adjusted way.
+            // This has the effect of making the AI more defensive.
+            // This makes it more fun to play against, and also probably more
+            // consistent against weaker opponents.
             let mut b_chance = crate::bonus_chance();
             let mut nb_chance = crate::no_bonus_chance();
             let adjustment = Score::from_num(
