@@ -18,7 +18,7 @@ pub struct AlphaBeta {
 /// on both sides. It should always be true that 0 <= min, max <= 1. It is not
 /// necessarily true that min < max. To represent a min bound of 0 or a max
 /// bound of 1 (i.e. no bound), `None` is used.
-#[derive(Clone, Copy)]
+#[derive(Clone, Copy, Debug)]
 pub struct Bounds {
     pub min: Option<Score>,
     pub max: Option<Score>,
@@ -109,19 +109,6 @@ impl Bounds {
         }
         false
     }
-    fn update(&mut self, score_info: ScoreInfo) {
-        // Some trickery needed here since the `ScoreInfo` bounds are inclusive
-        if score_info.min != ZERO {
-            self.update_min(score_info.min.checked_sub(DELTA).expect(
-                "non-zero minus delta should not underflow"
-            ));
-        }
-        if score_info.max != ONE {
-            self.update_max(score_info.max.checked_add(DELTA).expect(
-                "non-one plus delta should not overflow"
-            ));
-        }
-    }
 }
 
 /// Stores a pair of bounds for the score of a given position. Unlike `Bounds`,
@@ -194,18 +181,20 @@ impl AlphaBeta {
         // Check if there is an existing entry in the position table
         if let Some(score_info) = self.position_table.get(board, depth) {
             if bounds.info_too_low(score_info) { return Low; }
-            else if bounds.info_too_high(score_info) { return High; }
+            else if bounds.info_too_high(score_info) {
+                assert!(bounds.max != None, "info too high with no max bound");
+                return High; }
             else if let Some(score) = score_info.actual_score() {
                 if depth != self.lookahead {
-                    return Result(score, None);
-                } else {
                     // Unfortunately we can't use the table for the root,
                     // since it doesn't contain the move required
-                    bounds.update(score_info);
+                    return Result(score, None);
                 }
-            } else {
-                bounds.update(score_info);
             }
+            // Updating the bounds here should be possible, but it's fraught,
+            // since if we get an evaluation that is at a higher depth,
+            // we might be updating them to be too tight which could result
+            // in an incorrectly returned prune. So we don't do that.
         }
 
         if depth == 0 || !matches!(board.get_status(), Status::InProgress) {
@@ -301,11 +290,11 @@ impl AlphaBeta {
         // This could lead to incompatible ranges.
         let new = match result {
             Result(score, _) => ScoreInfo::from_score(*score),
-            Low => ScoreInfo::from_max_score(bounds.min.expect("
-                shouldn't return Low if there is no minimum bound
+            Low => ScoreInfo::from_max_score(bounds.min.expect("\
+                shouldn't return Low if there is no minimum bound\
             ")),
-            High => ScoreInfo::from_min_score(bounds.max.expect("
-                shouldn't return High if there is no maximum bound
+            High => ScoreInfo::from_min_score(bounds.max.expect("\
+                shouldn't return High if there is no maximum bound\
             ")),
         };
         self.position_table.insert(board, depth, new);
