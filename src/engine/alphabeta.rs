@@ -378,7 +378,7 @@ impl AlphaBeta {
         line
     }
 
-    fn prune_statistics(&mut self) -> String {
+    fn prune_statistics(&self) -> String {
         let mut s = String::new();
         
         s.push_str(&format!("Pruning statistics:\n"));
@@ -408,10 +408,12 @@ impl AlphaBeta {
             s.push_str(&format!("\t\t{} ({}%) were pruned\n",
                 p, (p * 100) / t));
         }
-
-        self.branch_info = vec![BranchInfo::new(); self.lookahead as usize + 1];
         
         s
+    }
+
+    fn reset_prune_statistics(&mut self) {
+        self.branch_info = vec![BranchInfo::new(); self.lookahead as usize + 1];
     }
 
 }
@@ -430,6 +432,9 @@ impl Engine for AlphaBeta {
     }
 
     fn get_move(&mut self, board: &MyBoard) -> ChessMove {
+        self.position_table.reset_debug_info();
+        self.rounding_errors = 0;
+        self.reset_prune_statistics();
         web_sys::console::time_with_label("calculating best move");
         let mv = match
             self.get_scored_best_move(board, Bounds::widest(), self.lookahead)
@@ -445,11 +450,9 @@ impl Engine for AlphaBeta {
         mv
     }
 
-    fn log_info(&mut self) {
+    fn log_info(&self) {
         web_sys::console::log_1(&self.position_table.info().into());
-        self.position_table.reset_debug_info();
         web_sys::console::log_1(&format!("detected {} rounding errors", self.rounding_errors).into());
-        self.rounding_errors = 0;
         web_sys::console::log_1(&self.prune_statistics().into());
     }
 

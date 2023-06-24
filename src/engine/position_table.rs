@@ -157,7 +157,7 @@ impl<S: Copy> PositionTable<S> {
         }
     }
 
-    pub fn info(&mut self) -> String {
+    pub fn info(&self) -> String {
         format!("Position table with {}/{} entries ({}% full):\n\
             \tTotal insert attempts: {}\n\
             \t\tAdditions: {} ({}%)\n\

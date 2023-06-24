@@ -62,7 +62,7 @@ pub trait Engine {
 
     /// Can be implemented to have certain information logged when a
     /// move is chosen.
-    fn log_info(&mut self) {}
+    fn log_info(&self) {}
 
     /// Generate both the bonus and no bonus boards for a move. If `checked` is
     /// true, then `apply_bonus` will be called, but otherwise

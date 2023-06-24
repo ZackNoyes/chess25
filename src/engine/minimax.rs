@@ -68,9 +68,4 @@ impl Engine for Minimax {
         self.evaluate_with_cutoff(&board, self.lookahead - 1)
     }
 
-    fn log_info(&mut self) {
-        web_sys::console::log_1(&self.position_table.info().into());
-        self.position_table.reset_debug_info();
-    }
-
 }
