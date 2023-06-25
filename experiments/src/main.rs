@@ -1,16 +1,21 @@
 use chess::{ALL_COLORS, Color};
-use random_chess::{Engine, MyBoard, Status, bonus_chance, ProportionCount};
-use random_chess::AlphaBeta;
+use random_chess::{Engine, MyBoard, Status, Logger, bonus_chance};
+use random_chess::{AlphaBeta, ProportionCount};
 use rand::{thread_rng, Rng};
+
+const LOG_LEVEL: u8 = 2;
 
 fn main() {
     
-    let mut white = AlphaBeta::new(ProportionCount::default(), 3, false, 2);
-    let mut black = AlphaBeta::new(ProportionCount::default(), 3, false, 2);
+    let mut logger = Logger::new(LOG_LEVEL);
 
+    let mut white = AlphaBeta::new(ProportionCount::default(), 4, false, LOG_LEVEL);
+    let mut black = AlphaBeta::new(ProportionCount::default(), 4, true, LOG_LEVEL);
+    
+    logger.time_start(1, "single match time");
     let (res, moves) = run_single_match(&mut white, &mut black);
-
     println!("Result: {} in {} moves", res, moves);
+    logger.time_end(1, "single match time");
 
 }
 

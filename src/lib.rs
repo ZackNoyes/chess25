@@ -18,6 +18,7 @@ pub use engine::{
     alphabeta::AlphaBeta
 };
 pub use my_board::{MyBoard, Status};
+pub use logger::Logger;
 
 // When the `wee_alloc` feature is enabled, use `wee_alloc` as the global
 // allocator.
