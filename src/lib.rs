@@ -7,7 +7,7 @@ mod js_interface;
 mod engine;
 mod zobrist;
 
-type Score = FixedU32<U31>;
+pub type Score = FixedU32<U31>;
 pub(crate) const ONE: Score = Score::ONE;
 pub(crate) const ZERO: Score = Score::ZERO;
 pub(crate) const DELTA: Score = Score::DELTA;

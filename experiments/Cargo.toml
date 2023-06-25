@@ -10,3 +10,6 @@ chess = "3.2.0"
 fixed = "1.23.1"
 rand = "0.8.5"
 random-chess = { path = ".." }
+
+[profile.release]
+debug = true
