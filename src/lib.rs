@@ -1,15 +1,23 @@
 use fixed::{FixedU32, types::extra::U31};
 
 mod utils;
+mod logger;
 mod my_board;
 mod js_interface;
 mod engine;
 mod zobrist;
 
 type Score = FixedU32<U31>;
-pub const ONE: Score = Score::ONE;
-pub const ZERO: Score = Score::ZERO;
-pub const DELTA: Score = Score::DELTA;
+pub(crate) const ONE: Score = Score::ONE;
+pub(crate) const ZERO: Score = Score::ZERO;
+pub(crate) const DELTA: Score = Score::DELTA;
+
+pub use engine::{
+    Engine,
+    proportion_count::ProportionCount,
+    alphabeta::AlphaBeta
+};
+pub use my_board::{MyBoard, Status};
 
 // When the `wee_alloc` feature is enabled, use `wee_alloc` as the global
 // allocator.

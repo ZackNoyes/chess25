@@ -3,6 +3,7 @@ use core::panic;
 
 use chess::{Color::*, ChessMove};
 
+use crate::logger::Logger;
 use crate::{Score, ONE, ZERO, DELTA};
 use crate::my_board::{MyBoard, Status};
 
@@ -15,8 +16,7 @@ pub struct AlphaBeta {
     lookahead: u8,
     is_pessimistic: bool,
     position_table: PositionTable<ScoreInfo>,
-    /// 10 is everything and 0 is nothing
-    log_level: u8,
+    logger: Logger,
     // Debug info
     rounding_errors: u32,
     branch_info: Vec<BranchInfo>,
@@ -187,12 +187,13 @@ impl AlphaBeta {
         lookahead: u8, is_pessimistic: bool, log_level: u8
     ) -> Self {
         assert!(lookahead > 0, "lookahead must be positive");
+        let logger = Logger::new(log_level);
         AlphaBeta {
             static_evaluator: Box::new(static_evaluator),
             lookahead,
             is_pessimistic,
-            position_table: PositionTable::new(),
-            log_level,
+            position_table: PositionTable::new(&logger),
+            logger,
             rounding_errors: 0,
             branch_info: vec![BranchInfo::new(); lookahead as usize + 1],
             iter_deep_failures: 0,
@@ -495,11 +496,11 @@ impl Engine for AlphaBeta {
     }
 
     fn get_move(&mut self, board: &MyBoard) -> ChessMove {
-        if self.log_level >= 2 { web_sys::console::time_with_label("move calculation"); }
+        self.logger.time_start(2, "move calculation");
 
         for depth in 1..self.lookahead {
 
-            if self.log_level >= 5 { web_sys::console::time_with_label(&format!("depth {}", depth)); }
+            self.logger.time_start(5, &format!("depth {}", depth));
 
             self.iter_deep_lookups = 0;
             self.iter_deep_failures = 0;
@@ -511,14 +512,13 @@ impl Engine for AlphaBeta {
                 _ => panic!("pruning should not happen with the widest bounds"),
             };
             
-            if self.log_level >= 5 {
-                web_sys::console::log_1(&format!("\
-                    depth {}: score {}\n\t{}/{} ({}%) lookup failures",
-                    depth, s, self.iter_deep_failures, self.iter_deep_lookups,
-                    (self.iter_deep_failures * 100) / (self.iter_deep_lookups + 1)
-                ).into());
-                web_sys::console::time_end_with_label(&format!("depth {}", depth));
-            }
+            self.logger.log(5, &format!("\
+                depth {}: score {}\n\t{}/{} ({}%) lookup failures",
+                depth, s, self.iter_deep_failures, self.iter_deep_lookups,
+                (self.iter_deep_failures * 100) / (self.iter_deep_lookups + 1)
+            ));
+
+            self.logger.time_end(5, &format!("depth {}", depth));
 
         }
 
@@ -526,9 +526,8 @@ impl Engine for AlphaBeta {
         self.rounding_errors = 0;
         self.reset_prune_statistics();
 
-        if self.log_level >= 5 {
-            web_sys::console::time_with_label(&format!("depth {} (final)", self.lookahead));
-        }
+        
+        self.logger.time_start(5, &format!("depth {} (final)", self.lookahead));
         
         let (s, mv) = match
             self.get_scored_best_move(board, Bounds::widest(), self.lookahead)
@@ -537,33 +536,29 @@ impl Engine for AlphaBeta {
             _ => panic!("pruning should not happen with the widest bounds"),
         };
         
-        if self.log_level >= 5 {
-            web_sys::console::time_end_with_label(&format!("depth {} (final)", self.lookahead));
-        }
-
-        if self.log_level >= 2 {
-            web_sys::console::log_1(&format!(
-                "{:?} to move evaluation: {}",
-                board.get_side_to_move(), s).into()
-            );
-            web_sys::console::time_end_with_label("move calculation");
-        }
         
-        if self.log_level >= 5 { self.log_info(); }
+        self.logger.time_end(5, &format!("depth {} (final)", self.lookahead));
 
-        if self.log_level >= 8 {
-            web_sys::console::time_with_label("reasoning generation");
-            web_sys::console::log_1(&self.get_line(board));
-            web_sys::console::time_end_with_label("reasoning generation");
-        }
+        self.logger.log(2, &format!("{:?} to move evaluation: {}",
+            board.get_side_to_move(), s));
+
+        self.logger.time_end(2, "move calculation");
+
+        self.logger.time_start(8, "reasoning generation");
+        self.logger.clone().log_lazy_arr(8, || { self.get_line(board) });
+        self.logger.time_end(8, "reasoning generation");
         
         mv
     }
 
     fn log_info(&self) {
-        web_sys::console::log_1(&self.position_table.info().into());
-        web_sys::console::log_1(&format!("detected {} rounding errors", self.rounding_errors).into());
-        web_sys::console::log_1(&self.prune_statistics().into());
+        self.logger.log_lazy(5, || { self.position_table.info() });
+        self.logger.log(5, &format!("detected {} rounding errors", self.rounding_errors));
+        self.logger.log_lazy(5, || { self.prune_statistics() });
+    }
+
+    fn get_logger(&self) -> &Logger {
+        &self.logger
     }
 
 }

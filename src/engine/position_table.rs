@@ -1,5 +1,5 @@
 
-use crate::{my_board::MyBoard};
+use crate::{my_board::MyBoard, logger::Logger};
 
 // 2^26 is the maximum we can get with Vec's allocation (for 32 bytes)
 // I've scaled it down a bit since the allocation does take quite a while,
@@ -48,13 +48,13 @@ pub struct PositionTable<S: Copy> {
 
 impl<S: Copy> PositionTable<S> {
 
-    pub fn new() -> PositionTable<S> {
+    pub fn new(logger: &Logger) -> PositionTable<S> {
         let table = vec![None; TABLE_SIZE].into_boxed_slice();
-        web_sys::console::log_1(&format!(
+        logger.log(5, &format!(
             "Position table of {} elements (each {} bytes) allocated. Total size {} MB",
             table.len(), std::mem::size_of::<Option<Evaluation<S>>>(),
             table.len() * std::mem::size_of::<Option<Evaluation<S>>>() / 1000000
-        ).into());
+        ));
         PositionTable {
             table,
             items: 0,

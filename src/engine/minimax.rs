@@ -2,6 +2,7 @@
 use chess::Color;
 
 use crate::Score;
+use crate::logger::Logger;
 use crate::my_board::{MyBoard, Status};
 use super::position_table::{PositionTable};
 use super::{Engine, StaticEvaluator};
@@ -10,15 +11,18 @@ pub struct Minimax {
     static_evaluator: Box<dyn StaticEvaluator>,
     lookahead: u8,
     position_table: PositionTable<Score>,
+    logger: Logger,
 }
 
 impl Minimax {
 
     pub fn new(static_evaluator: impl StaticEvaluator + 'static, lookahead: u8) -> Self {
+        let logger = Logger::new(0);
         Minimax {
             static_evaluator: Box::new(static_evaluator),
             lookahead,
-            position_table: PositionTable::new(),
+            position_table: PositionTable::new(&logger),
+            logger,
         }
     }
 
@@ -66,6 +70,10 @@ impl Engine for Minimax {
 
     fn evaluate(&mut self, board: &MyBoard) -> Score {
         self.evaluate_with_cutoff(board, self.lookahead - 1)
+    }
+
+    fn get_logger(&self) -> &Logger {
+        &self.logger
     }
 
 }

@@ -303,3 +303,14 @@ impl Index<Square> for MyBoard {
         &self.pieces[sq.to_index()]
     }
 }
+
+impl std::fmt::Display for Status {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            Status::InProgress => write!(f, "In Progress"),
+            Status::Win(Color::White) => write!(f, "White Wins"),
+            Status::Win(Color::Black) => write!(f, "Black Wins"),
+            Status::Draw => write!(f, "Draw"),
+        }
+    }
+}

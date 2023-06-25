@@ -10,6 +10,7 @@ mod position_table;
 
 use chess::{ChessMove, Color};
 use crate::Score;
+use crate::logger::Logger;
 use crate::my_board::MyBoard;
 use evaluator::StaticEvaluator;
 
@@ -55,7 +56,7 @@ pub trait Engine {
             );
         }
 
-        web_sys::console::log_1(&log_string.into());
+        self.get_logger().log(5, &log_string);
 
         move_evaluations[0].0
     }
@@ -80,6 +81,8 @@ pub trait Engine {
         }
         (bonus_board, no_bonus_board)
     }
+
+    fn get_logger(&self) -> &Logger;
 }
 
 #[allow(dead_code)]

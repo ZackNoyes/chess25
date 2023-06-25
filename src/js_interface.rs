@@ -23,13 +23,13 @@ impl JSInterface {
             engine_black: Box::new(
                 crate::engine::alphabeta::AlphaBeta::new(
                     crate::engine::proportion_count::ProportionCount::default(),
-                    5, true, 2
+                    4, true, 2
                 )
             ),
             engine_white: Box::new(
                 crate::engine::alphabeta::AlphaBeta::new(
                     crate::engine::proportion_count::ProportionCount::default(),
-                    5, false, 2
+                    4, false, 2
                 )
             )
         }
