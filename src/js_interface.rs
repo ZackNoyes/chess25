@@ -7,7 +7,8 @@ use js_sys::{Array, JsString};
 #[wasm_bindgen]
 pub struct JSInterface {
     board: MyBoard,
-    engine: Box<dyn Engine>,
+    engine_black: Box<dyn Engine>,
+    engine_white: Box<dyn Engine>,
 }
 
 #[wasm_bindgen]
@@ -19,7 +20,18 @@ impl JSInterface {
             board: MyBoard::initial_board(
                 if white_starts { Color::White } else { Color::Black }
             ),
-            engine: Box::new(crate::engine::default_engine())
+            engine_black: Box::new(
+                crate::engine::alphabeta::AlphaBeta::new(
+                    crate::engine::proportion_count::ProportionCount::default(),
+                    5, true, 2
+                )
+            ),
+            engine_white: Box::new(
+                crate::engine::alphabeta::AlphaBeta::new(
+                    crate::engine::proportion_count::ProportionCount::default(),
+                    5, false, 2
+                )
+            )
         }
     }
 
@@ -94,7 +106,12 @@ impl JSInterface {
     }
 
     pub fn js_get_engine_move(&mut self) -> Array {
-        move_to_array(self.engine.get_move(&self.board))
+        move_to_array(
+            match self.board.get_side_to_move() {
+                Color::White => self.engine_white.get_move(&self.board),
+                Color::Black => self.engine_black.get_move(&self.board)
+            }
+        )
     }
 }
 

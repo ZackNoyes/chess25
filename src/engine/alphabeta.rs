@@ -13,7 +13,10 @@ use super::position_table::PositionTable;
 pub struct AlphaBeta {
     static_evaluator: Box<dyn StaticEvaluator>,
     lookahead: u8,
+    is_pessimistic: bool,
     position_table: PositionTable<ScoreInfo>,
+    /// 10 is everything and 0 is nothing
+    log_level: u8,
     // Debug info
     rounding_errors: u32,
     branch_info: Vec<BranchInfo>,
@@ -180,12 +183,16 @@ impl BranchInfo {
 
 impl AlphaBeta {
 
-    pub fn new(static_evaluator: impl StaticEvaluator + 'static, lookahead: u8) -> Self {
+    pub fn new(static_evaluator: impl StaticEvaluator + 'static,
+        lookahead: u8, is_pessimistic: bool, log_level: u8
+    ) -> Self {
         assert!(lookahead > 0, "lookahead must be positive");
         AlphaBeta {
             static_evaluator: Box::new(static_evaluator),
             lookahead,
+            is_pessimistic,
             position_table: PositionTable::new(),
+            log_level,
             rounding_errors: 0,
             branch_info: vec![BranchInfo::new(); lookahead as usize + 1],
             iter_deep_failures: 0,
@@ -293,21 +300,22 @@ impl AlphaBeta {
             // This makes it more fun to play against, and also probably more
             // consistent against weaker opponents.
             // TODO: Replace this with a better heuristic
-            let b_chance = crate::bonus_chance();
-            let nb_chance = crate::no_bonus_chance();
+            let mut b_chance = crate::bonus_chance();
+            let mut nb_chance = crate::no_bonus_chance();
 
-            // I've disabled the adjustment for the moment
-            // let adjustment = Score::from_num(
-            //     ((b_board.get_black_pieces() | b_board.get_white_pieces())
-            //     .count()) as f64 / 200.0
-            // );
-            // if is_maxing {
-            //     b_chance += adjustment;
-            //     nb_chance -= adjustment;
-            // } else {
-            //     b_chance -= adjustment;
-            //     nb_chance += adjustment;
-            // }
+            if self.is_pessimistic {
+                let adjustment = Score::from_num(
+                    ((b_board.get_black_pieces() | b_board.get_white_pieces())
+                    .count()) as f64 / 200.0
+                );
+                if is_maxing {
+                    b_chance += adjustment;
+                    nb_chance -= adjustment;
+                } else {
+                    b_chance -= adjustment;
+                    nb_chance += adjustment;
+                }
+            }
 
             // Calculate the implied bounds on the no-bonus branch, assuming
             // a worst-case scenario for the bonus branch at both sides of the
@@ -453,15 +461,15 @@ impl AlphaBeta {
                     d, t));
             } else {
                 s.push_str(&format!("\tDepth {} had {} nodes (avg. branching factor of {}):\n",
-                    d, t, t / self.branch_info[depth + 1].expanded));
+                    d, t, t.checked_div(self.branch_info[depth + 1].expanded).unwrap_or(0)));
             }
 
             s.push_str(&format!("\t\t{} ({}%) were expanded\n",
-                e, (e * 100) / t));
+                e, (e * 100).checked_div(t).unwrap_or(0)));
             s.push_str(&format!("\t\t{} ({}%) were resolved with a table lookup\n",
-                l, (l * 100) / t));
+                l, (l * 100).checked_div(t).unwrap_or(0)));
             s.push_str(&format!("\t\t{} ({}%) were pruned\n",
-                p, (p * 100) / t));
+                p, (p * 100).checked_div(t).unwrap_or(0)));
         }
         
         s
@@ -476,7 +484,7 @@ impl AlphaBeta {
 impl Engine for AlphaBeta {
 
     fn default(static_evaluator: impl StaticEvaluator + 'static) -> Self {
-        AlphaBeta::new(static_evaluator, 4)
+        AlphaBeta::new(static_evaluator, 4, false, 10)
     }
 
     fn evaluate(&mut self, board: &MyBoard) -> Score {
@@ -487,11 +495,11 @@ impl Engine for AlphaBeta {
     }
 
     fn get_move(&mut self, board: &MyBoard) -> ChessMove {
-        web_sys::console::time_with_label("move calculation");
+        if self.log_level >= 2 { web_sys::console::time_with_label("move calculation"); }
 
         for depth in 1..self.lookahead {
 
-            web_sys::console::time_with_label(&format!("depth {}", depth));
+            if self.log_level >= 5 { web_sys::console::time_with_label(&format!("depth {}", depth)); }
 
             self.iter_deep_lookups = 0;
             self.iter_deep_failures = 0;
@@ -503,13 +511,14 @@ impl Engine for AlphaBeta {
                 _ => panic!("pruning should not happen with the widest bounds"),
             };
             
-            web_sys::console::log_1(&format!("\
-                depth {}: score {}\n\t{}/{} ({}%) lookup failures",
-                depth, s, self.iter_deep_failures, self.iter_deep_lookups,
-                (self.iter_deep_failures * 100) / (self.iter_deep_lookups + 1)
-            ).into());
-
-            web_sys::console::time_end_with_label(&format!("depth {}", depth));
+            if self.log_level >= 5 {
+                web_sys::console::log_1(&format!("\
+                    depth {}: score {}\n\t{}/{} ({}%) lookup failures",
+                    depth, s, self.iter_deep_failures, self.iter_deep_lookups,
+                    (self.iter_deep_failures * 100) / (self.iter_deep_lookups + 1)
+                ).into());
+                web_sys::console::time_end_with_label(&format!("depth {}", depth));
+            }
 
         }
 
@@ -517,22 +526,36 @@ impl Engine for AlphaBeta {
         self.rounding_errors = 0;
         self.reset_prune_statistics();
 
-        web_sys::console::time_with_label(&format!("depth {} (final)", self.lookahead));
+        if self.log_level >= 5 {
+            web_sys::console::time_with_label(&format!("depth {} (final)", self.lookahead));
+        }
         
-        let mv = match
+        let (s, mv) = match
             self.get_scored_best_move(board, Bounds::widest(), self.lookahead)
         {
-            Result(_, mv) => mv.expect("move should be returned at top level"),
+            Result(s, mv) => (s, mv.expect("move should be returned at top level")),
             _ => panic!("pruning should not happen with the widest bounds"),
         };
         
-        web_sys::console::time_end_with_label(&format!("depth {} (final)", self.lookahead));
-        web_sys::console::time_end_with_label("move calculation");
+        if self.log_level >= 5 {
+            web_sys::console::time_end_with_label(&format!("depth {} (final)", self.lookahead));
+        }
+
+        if self.log_level >= 2 {
+            web_sys::console::log_1(&format!(
+                "{:?} to move evaluation: {}",
+                board.get_side_to_move(), s).into()
+            );
+            web_sys::console::time_end_with_label("move calculation");
+        }
         
-        self.log_info();
-        web_sys::console::time_with_label("reasoning generation");
-        web_sys::console::log_1(&self.get_line(board));
-        web_sys::console::time_end_with_label("reasoning generation");
+        if self.log_level >= 5 { self.log_info(); }
+
+        if self.log_level >= 8 {
+            web_sys::console::time_with_label("reasoning generation");
+            web_sys::console::log_1(&self.get_line(board));
+            web_sys::console::time_end_with_label("reasoning generation");
+        }
         
         mv
     }

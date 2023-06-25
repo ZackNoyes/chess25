@@ -1,10 +1,10 @@
 
 mod greedy;
 mod minimax;
-mod alphabeta;
+pub mod alphabeta;
 
 mod evaluator;
-mod proportion_count;
+pub mod proportion_count;
 
 mod position_table;
 
@@ -82,6 +82,7 @@ pub trait Engine {
     }
 }
 
+#[allow(dead_code)]
 pub fn default_engine() -> impl Engine {
     alphabeta::AlphaBeta::default(proportion_count::ProportionCount::default())
 }
