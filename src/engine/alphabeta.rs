@@ -293,19 +293,21 @@ impl AlphaBeta {
             // This makes it more fun to play against, and also probably more
             // consistent against weaker opponents.
             // TODO: Replace this with a better heuristic
-            let mut b_chance = crate::bonus_chance();
-            let mut nb_chance = crate::no_bonus_chance();
-            let adjustment = Score::from_num(
-                ((b_board.get_black_pieces() | b_board.get_white_pieces())
-                .count()) as f64 / 200.0
-            );
-            if is_maxing {
-                b_chance += adjustment;
-                nb_chance -= adjustment;
-            } else {
-                b_chance -= adjustment;
-                nb_chance += adjustment;
-            }
+            let b_chance = crate::bonus_chance();
+            let nb_chance = crate::no_bonus_chance();
+
+            // I've disabled the adjustment for the moment
+            // let adjustment = Score::from_num(
+            //     ((b_board.get_black_pieces() | b_board.get_white_pieces())
+            //     .count()) as f64 / 200.0
+            // );
+            // if is_maxing {
+            //     b_chance += adjustment;
+            //     nb_chance -= adjustment;
+            // } else {
+            //     b_chance -= adjustment;
+            //     nb_chance += adjustment;
+            // }
 
             // Calculate the implied bounds on the no-bonus branch, assuming
             // a worst-case scenario for the bonus branch at both sides of the
