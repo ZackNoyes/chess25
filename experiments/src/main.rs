@@ -6,19 +6,11 @@ use rand::{thread_rng, Rng};
 use std::sync::{Arc, Mutex};
 use std::thread;
 
-const LOG_LEVEL: u8 = 2;
+const LOG_LEVEL: u8 = 1;
 
 fn main() {
 
-    let mut logger = Logger::new(LOG_LEVEL);
-    // TODO: find the bug that leads to white winning more often
-    let mut white = AlphaBeta::new(ProportionCount::default(), 3, false, LOG_LEVEL);
-    let mut black = AlphaBeta::new(ProportionCount::default(), 3, false, LOG_LEVEL);
-
-    logger.time_start(1, "single match time");
-    let (res, moves) = run_single_match(&mut white, &mut black);
-    println!("Result: {} in {} moves", res, moves);
-    logger.time_end(1, "single match time");
+    _run_concurrent_matches();
 
 }
 
@@ -44,6 +36,17 @@ fn run_single_match(white_player: &mut dyn Engine, black_player: &mut dyn Engine
     (board.get_status(), moves)
 }
 
+fn _bench_single_match() {
+    let mut logger = Logger::new(LOG_LEVEL);
+    let mut white = AlphaBeta::new(ProportionCount::default(), 3, false, LOG_LEVEL);
+    let mut black = AlphaBeta::new(ProportionCount::default(), 3, false, LOG_LEVEL);
+
+    logger.time_start(1, "single match time");
+    let (res, moves) = run_single_match(&mut white, &mut black);
+    println!("Result: {} in {} moves", res, moves);
+    logger.time_end(1, "single match time");
+}
+
 fn _run_concurrent_matches() {
     let white_wins = Arc::new(Mutex::new(0));
     let black_wins = Arc::new(Mutex::new(0));
@@ -51,16 +54,16 @@ fn _run_concurrent_matches() {
 
     let mut thread_handles = Vec::new();
 
-    for t in 1..=6 {
+    for t in 1..=5 {
         let white_wins = Arc::clone(&white_wins);
         let black_wins = Arc::clone(&black_wins);
         let draws = Arc::clone(&draws);
         thread_handles.push(thread::spawn(move || {
             let mut logger = Logger::new(LOG_LEVEL);
             // TODO: find the bug that leads to white winning more often
-            let mut white = AlphaBeta::new(ProportionCount::default(), 2, false, LOG_LEVEL);
-            let mut black = AlphaBeta::new(ProportionCount::default(), 2, false, LOG_LEVEL);
-            for _ in 1..=10000 {
+            let mut white = AlphaBeta::new(ProportionCount::default(), 1, false, LOG_LEVEL);
+            let mut black = AlphaBeta::new(ProportionCount::default(), 1, false, LOG_LEVEL);
+            for _ in 1..=100 {
                 // println!("{}: Match {}", t, i);
                 logger.time_start(1, "single match time");
                 let (res, _) = run_single_match(&mut white, &mut black);
