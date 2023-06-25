@@ -3,7 +3,7 @@ use random_chess::{Engine, MyBoard, Status, Logger, bonus_chance};
 use random_chess::{AlphaBeta, ProportionCount};
 use rand::{thread_rng, Rng};
 
-const LOG_LEVEL: u8 = 2;
+const LOG_LEVEL: u8 = 1;
 
 fn main() {
     
