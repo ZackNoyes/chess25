@@ -5,8 +5,8 @@ use rand::{thread_rng, Rng};
 
 fn main() {
     
-    let mut white = AlphaBeta::new(ProportionCount::default(), 3, false, 10);
-    let mut black = AlphaBeta::new(ProportionCount::default(), 3, false, 10);
+    let mut white = AlphaBeta::new(ProportionCount::default(), 3, false, 2);
+    let mut black = AlphaBeta::new(ProportionCount::default(), 3, false, 2);
 
     let (res, moves) = run_single_match(&mut white, &mut black);
 

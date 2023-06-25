@@ -69,8 +69,8 @@ impl Logger {
         if let Some(start) = self.start_times.remove(name) {
             let elapsed = start.elapsed();
             self.log(level, &format!(
-                "{}: {}.{:03}",
-                name, elapsed.as_secs(), elapsed.subsec_millis()
+                "{}: {} ms",
+                name, elapsed.as_millis()
             ));
         } else { panic!("end_time called for non-existing timing string") }
 
