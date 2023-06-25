@@ -115,11 +115,7 @@ fn move_to_array(m: ChessMove) -> Array {
     js_move.push(&m.get_source().get_rank().to_index().into());
     js_move.push(&m.get_dest().get_file().to_index().into());
     js_move.push(&m.get_dest().get_rank().to_index().into());
-    js_move.push(&
-        if let Some(p) = m.get_promotion() { Some(p.to_index()) }
-        else { None }
-        .into()
-    );
+    js_move.push(&m.get_promotion().map(|p| p.to_index()).into());
     js_move
 }
 

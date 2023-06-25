@@ -43,14 +43,14 @@ pub trait Engine {
 
         let mut log_string = String::from("Top three moves considered: \n");
 
-        for i in 0..3 {
+        for (i, move_eval) in move_evaluations.iter().take(3).enumerate() {
             log_string.push_str(
                 &format!(
                     "{}: {} to {} with score {}\n",
                     i,
-                    move_evaluations[i].0.get_source(),
-                    move_evaluations[i].0.get_dest(),
-                    move_evaluations[i].1
+                    move_eval.0.get_source(),
+                    move_eval.0.get_dest(),
+                    move_eval.1
                 )
             );
         }

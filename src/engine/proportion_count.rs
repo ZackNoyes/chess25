@@ -7,11 +7,8 @@ use super::StaticEvaluator;
 const PIECE_VALUES: [u8; 6] = [1, 3, 3, 5, 9, 1];
 
 #[wasm_bindgen]
+#[derive(Default)]
 pub struct ProportionCount;
-
-impl Default for ProportionCount {
-    fn default() -> Self { ProportionCount {} }
-}
 
 impl StaticEvaluator for ProportionCount {
 

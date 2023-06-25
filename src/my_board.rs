@@ -72,7 +72,7 @@ impl MyBoard {
         if matches!(starting_color, Color::Black) {
             zobrist_hash ^= Zobrist::color();
         }
-        let board = MyBoard {
+        MyBoard {
             pieces,
             side_to_move: starting_color,
             castle_rights: [CastleRights::Both, CastleRights::Both],
@@ -82,8 +82,7 @@ impl MyBoard {
             white_pieces,
             black_pieces,
             zobrist_hash,
-        };
-        board
+        }
     }
 
     pub fn moves_from(&self, sq: Square) -> Vec<ChessMove> {

@@ -65,7 +65,7 @@ impl Engine for Minimax {
     }
 
     fn evaluate(&mut self, board: &MyBoard) -> Score {
-        self.evaluate_with_cutoff(&board, self.lookahead - 1)
+        self.evaluate_with_cutoff(board, self.lookahead - 1)
     }
 
 }

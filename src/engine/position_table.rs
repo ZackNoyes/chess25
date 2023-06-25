@@ -117,7 +117,7 @@ impl<S: Copy> PositionTable<S> {
             },
         } {
             self.table[position.as_index()] = Some(Evaluation {
-                position: position,
+                position,
                 parameters: params,
                 score,
             });
@@ -135,7 +135,7 @@ impl<S: Copy> PositionTable<S> {
             dead_moves: board.get_dead_moves(),
         };
 
-        let pos = Position::from_board(&board);
+        let pos = Position::from_board(board);
 
         match self.table[pos.as_index()] {
             // The position is different, so we can't use the evaluation
@@ -164,7 +164,7 @@ impl<S: Copy> PositionTable<S> {
     /// 
     /// This board. This version doesn't update the debug info.
     pub fn get_lenient(&self, board: &MyBoard) -> Option<S> {
-        let pos = Position::from_board(&board);
+        let pos = Position::from_board(board);
         match self.table[pos.as_index()] {
             Some(evaluation) if evaluation.position == pos =>
                 Some(evaluation.score),

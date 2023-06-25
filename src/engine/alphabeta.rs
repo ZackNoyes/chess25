@@ -65,9 +65,7 @@ impl Bounds {
                 Some(new_min)
             } else { None },
             max: if let Some(max) = self.max {
-                if let Some(new_max) = max.checked_div(amount) {
-                    if new_max > ONE { None } else { Some(new_max) }
-                } else { None }
+                max.checked_div(amount).filter(|&new_max| new_max <= ONE)
             } else { None },
         }
     }
@@ -222,9 +220,7 @@ impl AlphaBeta {
         // Check if there is an existing entry in the position table
         if let Some(score_info) = self.position_table.get(board, depth) {
             if bounds.info_too_low(score_info) { return Low; }
-            else if bounds.info_too_high(score_info) {
-                assert!(bounds.max != None, "info too high with no max bound");
-                return High; }
+            else if bounds.info_too_high(score_info) { return High; }
             else if let Some(score) = score_info.actual_score() {
                 if depth != self.lookahead {
                     // Unfortunately we can't use the table for the root,
@@ -296,11 +292,12 @@ impl AlphaBeta {
             // This has the effect of making the AI more defensive.
             // This makes it more fun to play against, and also probably more
             // consistent against weaker opponents.
+            // TODO: Replace this with a better heuristic
             let mut b_chance = crate::bonus_chance();
             let mut nb_chance = crate::no_bonus_chance();
             let adjustment = Score::from_num(
-                (b_board.get_black_pieces() & b_board.get_black_pieces())
-                .count() / 200
+                ((b_board.get_black_pieces() | b_board.get_white_pieces())
+                .count()) as f64 / 200.0
             );
             if is_maxing {
                 b_chance += adjustment;
@@ -377,9 +374,8 @@ impl AlphaBeta {
 
         let res = if let Some((score, mv)) = best_result {
             Result(score, Some(mv))
-        } else {
-            if is_maxing { Low } else { High }
-        };
+        } else if is_maxing { Low } else { High };
+
         self.update_table_for_result(board, depth, bounds, &res);
         res
     }
@@ -438,7 +434,7 @@ impl AlphaBeta {
     fn prune_statistics(&self) -> String {
         let mut s = String::new();
         
-        s.push_str(&format!("Pruning statistics:\n"));
+        s.push_str("Pruning statistics:\n");
 
         for depth in (0..self.lookahead as usize + 1).rev() {
         
