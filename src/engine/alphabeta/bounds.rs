@@ -59,7 +59,7 @@ impl Bounds {
                     .expect("decreasing max should not overflow"))
             } else {
                 Some(ONE - amount + DELTA)
-                // we add DELTA since the bounds are inclusive. In practice this
+                // we add DELTA since the bounds are exclusive. In practice this
                 // just gets expanded and then becomes None.
             },
         }
@@ -93,5 +93,48 @@ impl Bounds {
             if score_info.min >= max { return true; }
         }
         false
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_widest_bounds() {
+        let initial = Bounds { min: None, max: None };
+        assert!(initial.valid());
+        assert!(initial.contains(ZERO));
+        assert!(initial.contains(Score::from_num(0.5)));
+        assert!(initial.contains(ONE));
+    }
+
+    #[test]
+    fn test_decrease_expand() {
+        let bounds =
+            Bounds {min: None, max: None}
+                .min_decreased_by(Score::from_num(0.25))
+                .expanded(Score::from_num(0.75));
+        assert!(bounds.valid());
+        assert!(bounds.contains(ZERO));
+        assert!(bounds.contains(Score::from_num(0.5)));
+        assert!(bounds.contains(ONE));
+    }
+
+    #[test]
+    fn test_exclusivity() {
+        let invalid_bounds = Bounds {
+            min: Some(Score::from_num(0.5)),
+            max: Some(Score::from_num(0.5))
+        };
+        assert!(!invalid_bounds.valid());
+        let bounds = Bounds {
+            min: Some(Score::from_num(0.5)),
+            max: Some(Score::from_num(0.6))
+        };
+        assert!(bounds.valid());
+        assert!(!bounds.contains(Score::from_num(0.5)));
+        assert!(bounds.contains(Score::from_num(0.55)));
+        assert!(!bounds.contains(Score::from_num(0.6)));
     }
 }
