@@ -11,6 +11,8 @@ use search_result::SearchResult::{self, *};
 mod branch_info;
 use branch_info::BranchInfo;
 
+#[cfg(test)] mod tests;
+
 use core::panic;
 
 use chess::{Color::*, ChessMove};
