@@ -14,6 +14,7 @@ pub(crate) const DELTA: Score = Score::DELTA;
 
 pub use engine::{
     Engine,
+    StaticEvaluator,
     proportion_count::ProportionCount,
     alphabeta::AlphaBeta
 };

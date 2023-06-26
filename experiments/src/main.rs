@@ -1,6 +1,6 @@
 use chess::{ALL_COLORS, Color};
 use random_chess::{Engine, MyBoard, Status, Logger, bonus_chance};
-use random_chess::{AlphaBeta, ProportionCount};
+use random_chess::{AlphaBeta, ProportionCount, StaticEvaluator};
 use rand::{thread_rng, Rng};
 
 use std::sync::{Arc, Mutex};
@@ -10,16 +10,35 @@ const LOG_LEVEL: u8 = 1;
 
 fn main() {
 
-    _run_concurrent_matches();
+    let mut white = AlphaBeta::new(ProportionCount::default(), 3, true, LOG_LEVEL);
+    let mut black = AlphaBeta::new(ProportionCount::default(), 3, true, LOG_LEVEL);
 
+    let (_, boards) = run_single_match(&mut white, &mut black);
+
+    let mut lookahead = AlphaBeta::new(ProportionCount::default(), 3, false, LOG_LEVEL);
+    let static_eval = ProportionCount::default();
+
+    let mut total_error = 0.0;
+
+    for board in boards.iter() {
+        let s_e: f32 = static_eval.evaluate(board).to_num();
+        let l_e: f32 = lookahead.evaluate(board).to_num();
+        println!("Static eval: {}", s_e);
+        println!("Lookahead eval: {}", l_e);
+        println!();
+        total_error += (s_e - l_e).abs();
+    }
+
+    println!("Average error {}", total_error / boards.len() as f32);
 }
 
 fn run_single_match(white_player: &mut dyn Engine, black_player: &mut dyn Engine)
-    -> (Status, usize)
+    -> (Status, Vec<MyBoard>)
 {
     let mut rng = thread_rng();
     let mut board = MyBoard::initial_board(ALL_COLORS[rng.gen_range(0..=1)]);
-    let mut moves = 0;
+    let mut boards = vec![board];
+
     loop {
         if !matches!(board.get_status(), Status::InProgress) { break; }
 
@@ -31,9 +50,9 @@ fn run_single_match(white_player: &mut dyn Engine, black_player: &mut dyn Engine
 
         board.apply_move(mv);
         board.apply_bonus(rng.gen_bool(bonus_chance().into()));
-        moves += 1;
+        boards.push(board);
     }
-    (board.get_status(), moves)
+    (board.get_status(), boards)
 }
 
 fn _bench_single_match() {
@@ -42,8 +61,8 @@ fn _bench_single_match() {
     let mut black = AlphaBeta::new(ProportionCount::default(), 3, false, LOG_LEVEL);
 
     logger.time_start(1, "single match time");
-    let (res, moves) = run_single_match(&mut white, &mut black);
-    println!("Result: {} in {} moves", res, moves);
+    let (res, boards) = run_single_match(&mut white, &mut black);
+    println!("Result: {} in {} moves", res, boards.len());
     logger.time_end(1, "single match time");
 }
 

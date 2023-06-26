@@ -12,7 +12,7 @@ use chess::{ChessMove, Color};
 use crate::Score;
 use crate::logger::Logger;
 use crate::my_board::MyBoard;
-use evaluator::StaticEvaluator;
+pub use evaluator::StaticEvaluator;
 
 pub trait Engine {
     fn default(static_evaluator: impl StaticEvaluator + 'static) -> Self where Self: Sized;
