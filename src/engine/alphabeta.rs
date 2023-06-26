@@ -1,10 +1,22 @@
 
+mod score_info;
+use score_info::ScoreInfo;
+
+mod bounds;
+use bounds::Bounds;
+
+mod search_result;
+use search_result::SearchResult::{self, *};
+
+mod branch_info;
+use branch_info::BranchInfo;
+
 use core::panic;
 
 use chess::{Color::*, ChessMove};
 
 use crate::logger::Logger;
-use crate::{Score, ONE, ZERO, DELTA};
+use crate::{Score, ONE};
 use crate::my_board::{MyBoard, Status};
 
 use super::Engine;
@@ -19,166 +31,9 @@ pub struct AlphaBeta {
     logger: Logger,
     // Debug info
     rounding_errors: u32,
-    branch_info: Vec<BranchInfo>,
+    branch_info: BranchInfo,
     iter_deep_failures: u32,
     iter_deep_lookups: u32,
-}
-
-/// Bounds for the possible evaluations for a move. The bounds are exclusive
-/// on both sides. It should always be true that 0 <= min, max <= 1. It is not
-/// necessarily true that min < max. To represent a min bound of 0 or a max
-/// bound of 1 (i.e. no bound), `None` is used.
-#[derive(Clone, Copy, Debug)]
-pub struct Bounds {
-    pub min: Option<Score>,
-    pub max: Option<Score>,
-}
-
-impl Bounds {
-    fn widest() -> Bounds {
-        Bounds { min: None, max: None }
-    }
-    fn score_too_low(self, score: Score) -> bool {
-        if let Some(min) = self.min { score <= min } else { false }
-    }
-    fn score_too_high(self, score: Score) -> bool {
-        if let Some(max) = self.max { max <= score } else { false }
-    }
-    fn contains(self, score: Score) -> bool {
-        !self.score_too_low(score) && !self.score_too_high(score)
-    }
-    fn min_decreased_by(self, amount: Score) -> Self {
-        Bounds {
-            min: if let Some(min) = self.min {
-                min.checked_sub(amount)
-            } else { None },
-            max: self.max,
-        }
-    }
-    /// Divides the bounds by the given amount. Slightly confusingly, I called
-    /// this `expanded` because it is called with arguments less than 1.
-    fn expanded(self, amount: Score) -> Self {
-        assert!(amount > ZERO, "amount must be positive");
-        assert!(amount < ONE, "amount must be less than 1");
-        Bounds {
-            min: if let Some(min) = self.min {
-                let new_min = min.checked_div(amount)
-                    .expect("expanding min should not overflow");
-                assert!(new_min <= ONE, "new min should be <= 1");
-                Some(new_min)
-            } else { None },
-            max: if let Some(max) = self.max {
-                max.checked_div(amount).filter(|&new_max| new_max <= ONE)
-            } else { None },
-        }
-    }
-    fn both_decreased_by(self, amount: Score) -> Self {
-        Bounds {
-            min: if let Some(min) = self.min {
-                min.checked_sub(amount)
-            } else { None },
-            max: if let Some(max) = self.max {
-                Some(max.checked_sub(amount)
-                    .expect("decreasing max should not overflow"))
-            } else {
-                Some(ONE - amount + DELTA)
-                // we add DELTA since the bounds are inclusive. In practice this
-                // just gets expanded and then becomes None.
-            },
-        }
-    }
-    fn valid(self) -> bool {
-        if let Some(max) = self.max {
-            max <= ONE &&
-            if let Some(min) = self.min {
-                min < max
-            } else { true }
-        } else { true }
-    }
-    fn update_min(&mut self, score: Score) {
-        if let Some(min) = self.min {
-            if score > min { self.min = Some(score); }
-        } else { self.min = Some(score); }
-    }
-    fn update_max(&mut self, score: Score) {
-        if let Some(max) = self.max {
-            if score < max { self.max = Some(score); }
-        } else { self.max = Some(score); }
-    }
-    fn info_too_low(self, score_info: ScoreInfo) -> bool {
-        if let Some(min) = self.min {
-            if score_info.max <= min { return true; }
-        }
-        false
-    }
-    fn info_too_high(self, score_info: ScoreInfo) -> bool {
-        if let Some(max) = self.max {
-            if score_info.min >= max { return true; }
-        }
-        false
-    }
-}
-
-/// Stores a pair of bounds for the score of a given position. Unlike `Bounds`,
-/// the bounds are inclusive on both sides, so `ZERO` and `ONE` can be used for
-/// the min and max bounds.
-/// 
-/// This is used in the position table to store the results of the search.
-#[derive(Clone, Copy, Debug)]
-struct ScoreInfo {
-    min: Score,
-    max: Score,
-}
-impl ScoreInfo {
-    fn actual_score(self) -> Option<Score> {
-        if self.min == self.max { Some(self.min) } else { None }
-    }
-    fn from_score(score: Score) -> Self {
-        ScoreInfo { min: score, max: score }
-    }
-    fn from_min_score(min: Score) -> Self {
-        ScoreInfo { min, max: ONE }
-    }
-    fn from_max_score(max: Score) -> Self {
-        ScoreInfo { min: ZERO, max }
-    }
-}
-
-use SearchResult::*;
-#[derive(Debug)]
-pub enum SearchResult {
-    /// A score, optionally with a move that leads to that score.
-    /// Most of the time, the move will be `None`, but it will be `Some` at the top
-    /// level of the search tree.
-    Result(Score, Option<ChessMove>),
-    /// The evaluation of the score is lower than the lower bound
-    Low,
-    /// The evaluation of the score is higher than the upper bound
-    High,
-}
-
-/// A way to record statistics about the search. This represents the information
-/// for a certain depth.
-/// - `not_pruned` is the number of nodes that were actually searched at a
-///   certain depth.
-///   - `expanded` is the number of nodes (of the `not_pruned` nodes) that were
-///      actually expanded (rather than being resolved by a table lookup).
-///  - `pruned` is the number of nodes that were never searched for a given
-///    depth, because the were pruned.
-#[derive(Clone, Copy)]
-struct BranchInfo {
-    pub not_pruned: u64,
-    pub expanded: u64,
-    pub pruned: u64,
-}
-impl BranchInfo {
-    fn new() -> Self {
-        BranchInfo {
-            not_pruned: 0,
-            expanded: 0,
-            pruned: 0,
-        }
-    }
 }
 
 impl AlphaBeta {
@@ -195,7 +50,7 @@ impl AlphaBeta {
             position_table: PositionTable::new(&logger),
             logger,
             rounding_errors: 0,
-            branch_info: vec![BranchInfo::new(); lookahead as usize + 1],
+            branch_info: BranchInfo::new(lookahead),
             iter_deep_failures: 0,
             iter_deep_lookups: 0,
         }
@@ -442,44 +297,6 @@ impl AlphaBeta {
         line
     }
 
-    fn prune_statistics(&self) -> String {
-        let mut s = String::new();
-        
-        s.push_str("Pruning statistics:\n");
-
-        for depth in (0..self.lookahead as usize + 1).rev() {
-        
-            let d = self.lookahead as usize - depth;
-
-            let np = self.branch_info[depth].not_pruned;
-            let p = self.branch_info[depth].pruned;
-            let e = self.branch_info[depth].expanded;
-            let t = np + p;
-            let l = np - e;
-
-            if depth == self.lookahead as usize {
-                s.push_str(&format!("\tDepth {} (root) had {} nodes:\n",
-                    d, t));
-            } else {
-                s.push_str(&format!("\tDepth {} had {} nodes (avg. branching factor of {}):\n",
-                    d, t, t.checked_div(self.branch_info[depth + 1].expanded).unwrap_or(0)));
-            }
-
-            s.push_str(&format!("\t\t{} ({}%) were expanded\n",
-                e, (e * 100).checked_div(t).unwrap_or(0)));
-            s.push_str(&format!("\t\t{} ({}%) were resolved with a table lookup\n",
-                l, (l * 100).checked_div(t).unwrap_or(0)));
-            s.push_str(&format!("\t\t{} ({}%) were pruned\n",
-                p, (p * 100).checked_div(t).unwrap_or(0)));
-        }
-        
-        s
-    }
-
-    fn reset_prune_statistics(&mut self) {
-        self.branch_info = vec![BranchInfo::new(); self.lookahead as usize + 1];
-    }
-
 }
 
 impl Engine for AlphaBeta {
@@ -524,7 +341,7 @@ impl Engine for AlphaBeta {
 
         self.position_table.reset_debug_info();
         self.rounding_errors = 0;
-        self.reset_prune_statistics();
+        self.branch_info.reset_statistics();
 
         
         self.logger.time_start(5, &format!("depth {} (final)", self.lookahead));
@@ -554,7 +371,7 @@ impl Engine for AlphaBeta {
     fn log_info(&self) {
         self.logger.log_lazy(5, || { self.position_table.info() });
         self.logger.log(5, &format!("detected {} rounding errors", self.rounding_errors));
-        self.logger.log_lazy(5, || { self.prune_statistics() });
+        self.logger.log_lazy(5, || { self.branch_info.statistics() });
     }
 
     fn get_logger(&self) -> &Logger {
