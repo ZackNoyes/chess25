@@ -5,6 +5,7 @@ pub mod alphabeta;
 
 mod evaluator;
 pub mod proportion_count;
+pub mod feature_eval;
 
 mod position_table;
 
