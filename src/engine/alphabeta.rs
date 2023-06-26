@@ -13,8 +13,6 @@ use branch_info::BranchInfo;
 
 #[cfg(test)] mod tests;
 
-use core::panic;
-
 use chess::{Color::*, ChessMove};
 
 use crate::logger::Logger;
@@ -78,6 +76,7 @@ impl AlphaBeta {
     /// the ordering.
     fn get_scored_best_move(&mut self, board: &MyBoard, bounds: Bounds, depth: u8) -> SearchResult {
         assert!(bounds.valid());
+        assert!(depth <= self.lookahead);
         let mut bounds = bounds;
 
         self.branch_info[depth as usize].not_pruned += 1;

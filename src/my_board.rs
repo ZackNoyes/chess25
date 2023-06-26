@@ -6,6 +6,8 @@ use chess::{
 };
 use crate::zobrist::Zobrist;
 
+use ansi_term::{Style, Colour};
+
 #[derive(Copy, Clone, Debug)]
 pub struct MyBoard {
     pieces: [Option<(Piece, Color)>; 64],
@@ -281,6 +283,67 @@ impl MyBoard {
         self.color_combined(Color::White) | self.color_combined(Color::Black)
     }
 
+    #[cfg(test)]
+    pub fn invert_ranks_and_colors(&mut self) {
+        
+        self.switch_side_to_move();
+        
+        let white_rights = self.get_castle_rights(Color::White);
+        let black_rights = self.get_castle_rights(Color::Black);
+        self.set_castle_rights(Color::White, black_rights);
+        self.set_castle_rights(Color::Black, white_rights);
+
+        self.status = match self.status {
+            Status::Win(c) => Status::Win(!c),
+            _ => self.status,
+        };
+
+        let tmp = self.white_pieces;
+        self.white_pieces = self.black_pieces;
+        self.black_pieces = tmp;
+
+        for sq in ALL_SQUARES {
+            self.set_piece(sq, self[sq].map(|(p, c)| (p, !c)));
+        }
+
+        for file in 0..8 {
+            for rank in 0..4 {
+                let sq1 = Square::make_square(
+                    Rank::from_index(rank), File::from_index(file));
+                let sq2 = Square::make_square(
+                    Rank::from_index(7 - rank), File::from_index(file));
+                let tmp = self[sq1];
+                self.set_piece(sq1, self[sq2]);
+                self.set_piece(sq2, tmp);
+            }
+        }
+    }
+
+    #[cfg(test)]
+    pub fn invert_files(&mut self) {
+
+        for rank in 0..8 {
+            for file in 0..4 {
+                let sq1 = Square::make_square(
+                    Rank::from_index(rank), File::from_index(file));
+                let sq2 = Square::make_square(
+                    Rank::from_index(rank), File::from_index(7 - file));
+                let tmp = self[sq1];
+                self.set_piece(sq1, self[sq2]);
+                self.set_piece(sq2, tmp);
+            }
+        }
+
+        self.castle_rights.iter_mut().for_each(|r|
+            *r = match r {
+                CastleRights::KingSide => CastleRights::QueenSide,
+                CastleRights::QueenSide => CastleRights::KingSide,
+                _ => *r,
+            }
+        );
+
+    }
+
 }
 
 fn kingside_castle_square(color: Color) -> Square {
@@ -312,5 +375,81 @@ impl std::fmt::Display for Status {
             Status::Win(Color::Black) => write!(f, "Black Wins"),
             Status::Draw => write!(f, "Draw"),
         }
+    }
+}
+
+impl std::fmt::Display for MyBoard {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        if self.awaiting_bonus {
+            return write!(f, "Board which is awaiting bonus move\n");
+        }
+        let mut s = String::new();
+        s.push_str("\n");
+        if matches!(self.status, Status::InProgress) {
+            s.push_str(format!("    {} to move\n", DColor(self.side_to_move)).as_str());
+        } else {
+            s.push_str(format!("{}\n", self.status).as_str());
+        }
+        for rank in (0..8).rev() {
+            s.push_str(
+                Colour::Fixed(94).paint(&format!("  {} ", rank + 1))
+                    .to_string().as_str()
+            );
+            for file in 0..8 {
+                let sq = Square::make_square(
+                    Rank::from_index(rank),
+                    File::from_index(file)
+                );
+                let mut piece = self[sq].map(|pc| {
+                    format!("{} ", DPiece(pc.0, pc.1))
+                }).unwrap_or("  ".to_string());
+                if self.castle_rights[0].unmoved_rooks(Color::White).any(|c| c == sq) {
+                    piece = Style::new().underline().paint(piece).to_string();
+                }
+                if self.castle_rights[1].unmoved_rooks(Color::Black).any(|c| c == sq) {
+                    piece = Style::new().underline().paint(piece).to_string();
+                }
+                s.push_str(&piece);
+            }
+            s.push('\n');
+        }
+        s.push_str(
+            Colour::Fixed(94).paint("    A B C D E F G H\n")
+                .to_string().as_str()
+        );
+        write!(f, "{}", Style::new().paint(s))
+    }
+}
+
+struct DPiece(Piece, Color);
+impl std::fmt::Display for DPiece {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        let style = if self.1 == Color::White {
+            Colour::Fixed(253).normal()
+        } else {
+            Colour::Fixed(240).bold()
+        };
+        write!(f, "{}", style.paint(
+            match self.0 {
+                Piece::Pawn => "P",
+                Piece::Knight => "N",
+                Piece::Bishop => "B",
+                Piece::Rook => "R",
+                Piece::Queen => "Q",
+                Piece::King => "K",
+            }
+        ).to_string().as_str())
+    }
+}
+
+struct DColor(Color);
+impl std::fmt::Display for DColor {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "{}",
+            match self.0 {
+                Color::White => Colour::Fixed(253).normal().paint("White"),
+                Color::Black => Colour::Fixed(240).bold().paint("Black"),
+            }
+        .to_string().as_str())
     }
 }
