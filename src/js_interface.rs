@@ -15,6 +15,13 @@ pub struct JSInterface {
 impl JSInterface {
 
     pub fn js_initial_interface(white_starts: bool) -> Self {
+        let weights = crate::engine::feature_eval::Weights {
+            pieces: [[1.0, 3.0, 3.0, 5.0, 9.0, 0.0], [-1.0, -3.0, -3.0, -5.0, -9.0, 0.0]],
+            mobility: [0.5, -0.5],
+            king_danger: [-2.0, 2.0],
+            pawn_advancement: [1.0, -1.0],
+            side_to_move: 3.0,
+        };
         crate::utils::set_panic_hook();
         JSInterface {
             board: MyBoard::initial_board(
@@ -22,8 +29,8 @@ impl JSInterface {
             ),
             engine_black: Box::new(
                 crate::engine::alphabeta::AlphaBeta::new(
-                    crate::engine::proportion_count::ProportionCount::default(),
-                    4, true, 2
+                    crate::engine::feature_eval::FeatureEval::new(weights, 22.0),
+                    4, false, 2
                 )
             ),
             engine_white: Box::new(

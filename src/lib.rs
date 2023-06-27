@@ -20,6 +20,7 @@ pub use engine::{
 };
 pub use my_board::{MyBoard, Status};
 pub use logger::Logger;
+pub use engine::feature_eval::{Features, FeatureEval, Weights};
 
 // When the `wee_alloc` feature is enabled, use `wee_alloc` as the global
 // allocator.
