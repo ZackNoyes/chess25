@@ -318,7 +318,7 @@ impl Engine for AlphaBeta {
 
         for depth in 1..self.lookahead {
 
-            self.logger.time_start(5, &format!("depth {}", depth));
+            self.logger.time_start(7, &format!("depth {}", depth));
 
             self.iter_deep_lookups = 0;
             self.iter_deep_failures = 0;
@@ -330,13 +330,13 @@ impl Engine for AlphaBeta {
                 _ => panic!("pruning should not happen with the widest bounds"),
             };
             
-            self.logger.log(5, &format!("\
+            self.logger.log(7, &format!("\
                 depth {}: score {}\n\t{}/{} ({}%) lookup failures",
                 depth, s, self.iter_deep_failures, self.iter_deep_lookups,
                 (self.iter_deep_failures * 100) / (self.iter_deep_lookups + 1)
             ));
 
-            self.logger.time_end(5, &format!("depth {}", depth));
+            self.logger.time_end(7, &format!("depth {}", depth));
 
         }
 
@@ -345,7 +345,7 @@ impl Engine for AlphaBeta {
         self.branch_info.reset_statistics();
 
         
-        self.logger.time_start(5, &format!("depth {} (final)", self.lookahead));
+        self.logger.time_start(7, &format!("depth {} (final)", self.lookahead));
         
         let (s, mv) = match
             self.get_scored_best_move(board, Bounds::widest(), self.lookahead)
@@ -355,12 +355,14 @@ impl Engine for AlphaBeta {
         };
         
         
-        self.logger.time_end(5, &format!("depth {} (final)", self.lookahead));
+        self.logger.time_end(7, &format!("depth {} (final)", self.lookahead));
 
         self.logger.log(2, &format!("{:?} to move evaluation: {}",
             board.get_side_to_move(), s));
 
         self.logger.time_end(2, "move calculation");
+
+        self.log_info();
 
         self.logger.time_start(8, "reasoning generation");
         self.logger.clone().log_lazy_arr(8, || { self.get_line(board) });
@@ -371,7 +373,7 @@ impl Engine for AlphaBeta {
 
     fn log_info(&self) {
         self.logger.log_lazy(5, || { self.position_table.info() });
-        self.logger.log(5, &format!("detected {} rounding errors", self.rounding_errors));
+        self.logger.log(7, &format!("detected {} rounding errors", self.rounding_errors));
         self.logger.log_lazy(5, || { self.branch_info.statistics() });
     }
 

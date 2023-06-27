@@ -49,9 +49,9 @@ impl BranchInfo {
         
         s.push_str("Pruning statistics:\n");
 
-        for depth in (0..self.0.len() as usize + 1).rev() {
+        for depth in (0..self.0.len() as usize).rev() {
         
-            let d = self.0.len() as usize - depth;
+            let d = self.0.len() as usize - depth - 1;
 
             let np = self.0[depth].not_pruned;
             let p = self.0[depth].pruned;
@@ -59,7 +59,7 @@ impl BranchInfo {
             let t = np + p;
             let l = np - e;
 
-            if depth == self.0.len() as usize {
+            if depth == self.0.len() as usize - 1 {
                 s.push_str(&format!("\tDepth {} (root) had {} nodes:\n",
                     d, t));
             } else {
@@ -79,6 +79,6 @@ impl BranchInfo {
     }
 
     pub fn reset_statistics(&mut self) {
-        self.0 = vec![LayerInfo::new(); self.0.len() as usize + 1];
+        self.0 = vec![LayerInfo::new(); self.0.len() as usize];
     }
 }

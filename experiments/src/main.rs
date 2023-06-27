@@ -15,10 +15,9 @@ fn main() {
 
 fn _feature_testing() {
     let weights1 = Weights {
-        pieces: [[1.0, 3.0, 3.0, 5.0, 9.0, 0.0], [-1.0, -3.0, -3.0, -5.0, -9.0, 0.0]],
-        mobility: [0.5, -0.5],
-        king_danger: [-2.0, 2.0],
-        pawn_advancement: [1.0, -1.0],
+        pieces: [[1.0, 3.0, 3.0, 5.0, 9.0, 1.0], [-1.0, -3.0, -3.0, -5.0, -9.0, 1.0]],
+        king_danger: [0.0, 0.0],
+        pawn_advancement: [0.0, 0.0],
         side_to_move: 3.0,
     };
 
@@ -33,30 +32,43 @@ fn _feature_testing() {
     }
 
     let mut lookahead = AlphaBeta::new(ProportionCount::default(), 3, false, LOG_LEVEL);
+    let mut new_lookahead = AlphaBeta::new(FeatureEval::new(weights1, 22.0), 3, false, LOG_LEVEL);
     let static_eval = ProportionCount::default();
-    let new_static_eval = FeatureEval::new(weights1, 22.0);
+    let new_static_eval = FeatureEval::new(weights1, 14.0);
 
     let mut total_error = 0.0;
     let mut total_error2 = 0.0;
+    let mut total_error3 = 0.0;
+
+    let mut magnitude_error = 0.0;
+    let mut magnitude_error2 = 0.0;
 
     for board in boards.iter() {
         let s_e: f32 = static_eval.evaluate(board).to_num();
         let s2_e: f32 = new_static_eval.evaluate(board).to_num();
         let l_e: f32 = lookahead.evaluate(board).to_num();
+        let l2_e: f32 = new_lookahead.evaluate(board).to_num();
         println!("{}", board);
         println!("Static eval: {}", s_e);
         println!("Features eval: {}", s2_e);
         println!("Lookahead eval: {}", l_e);
+        println!("Features lookahead eval: {}", l2_e);
         if matches!(board.get_status(), Status::InProgress) {
             println!("Features: {:?}", Features::from_board(board));
         }
         println!();
         total_error += (s_e - l_e).abs();
         total_error2 += (s2_e - l_e).abs();
+        total_error3 += (s2_e - l2_e).abs();
+        magnitude_error += (s2_e - 0.5).abs() - (l_e - 0.5).abs();
+        magnitude_error2 += (s2_e - 0.5).abs() - (l2_e - 0.5).abs();
     }
 
     println!("Average error propcount {}", total_error / boards.len() as f32);
     println!("Average error features {}", total_error2 / boards.len() as f32);
+    println!("Average self-error features {}", total_error3 / boards.len() as f32);
+    println!("Magnitude error features {}", magnitude_error / boards.len() as f32);
+    println!("Magnitude self-error features {}", magnitude_error2 / boards.len() as f32);
 }
 
 fn _run_single_match(white_player: &mut dyn Engine, black_player: &mut dyn Engine)
@@ -109,16 +121,15 @@ fn _run_concurrent_matches() {
             
             let weights1 = Weights {
                 pieces: [[1.0, 3.0, 3.0, 5.0, 9.0, 0.0], [-1.0, -3.0, -3.0, -5.0, -9.0, 0.0]],
-                mobility: [0.5, -0.5],
-                king_danger: [-2.0, 2.0],
-                pawn_advancement: [1.0, -1.0],
+                king_danger: [-1.0, 1.0],
+                pawn_advancement: [0.5, -0.5],
                 side_to_move: 3.0,
             };
 
             let mut logger = Logger::new(LOG_LEVEL);
             
-            let mut black = AlphaBeta::new(ProportionCount::default(), 2, false, LOG_LEVEL);
-            let mut white = AlphaBeta::new(FeatureEval::new(weights1, 22.0), 2, false, LOG_LEVEL);
+            let mut white = AlphaBeta::new(ProportionCount::default(), 1, false, LOG_LEVEL);
+            let mut black = AlphaBeta::new(FeatureEval::new(weights1, 20.0), 3, true, LOG_LEVEL);
             for _ in 1..=200 {
                 // println!("{}: Match {}", t, i);
                 logger.time_start(1, "single match time");

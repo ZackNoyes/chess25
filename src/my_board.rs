@@ -247,11 +247,7 @@ impl MyBoard {
     }
 
     /// Switches the side to move and updates the zobrist hash.
-    /// 
-    /// Generally, `apply_bonus` or `apply_bonus_unchecked` should be used
-    /// instead of this function. Only use this if you don't care about possibly
-    /// messing up the internal `awaiting_bonus` flag.
-    pub(crate) fn switch_side_to_move(&mut self) {
+    fn switch_side_to_move(&mut self) {
         self.zobrist_hash ^= Zobrist::color();
         self.side_to_move = !self.side_to_move;
     }
