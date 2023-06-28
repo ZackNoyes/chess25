@@ -63,8 +63,7 @@ impl BranchInfo {
                 s.push_str(&format!("\tDepth {} (root) had {} nodes:\n",
                     d, t));
             } else {
-                s.push_str(&format!("\tDepth {} had {} nodes (avg. branching factor of {}):\n",
-                    d, t, t.checked_div(self.0[depth + 1].expanded).unwrap_or(0)));
+                s.push_str(&format!("\tDepth {} had {} nodes:\n", d, t));
             }
 
             s.push_str(&format!("\t\t{} ({}%) were expanded\n",

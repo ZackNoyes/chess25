@@ -319,6 +319,7 @@ impl MyBoard {
         }
     }
 
+    /// Note that this stuffs up the castling logic
     #[cfg(test)]
     pub fn invert_files(&mut self) {
 
@@ -342,6 +343,12 @@ impl MyBoard {
             }
         );
 
+    }
+
+    #[cfg(test)]
+    pub fn strip_castle_rights(&mut self) {
+        self.set_castle_rights(Color::White, CastleRights::NoRights);
+        self.set_castle_rights(Color::Black, CastleRights::NoRights);
     }
 
 }

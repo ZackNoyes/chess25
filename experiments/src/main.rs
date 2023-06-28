@@ -21,8 +21,8 @@ fn _feature_testing() {
         side_to_move: 3.0,
     };
 
-    let mut white = AlphaBeta::new(ProportionCount::default(), 3, true, LOG_LEVEL);
-    let mut black = AlphaBeta::new(ProportionCount::default(), 3, true, LOG_LEVEL);
+    let mut white = AlphaBeta::new(ProportionCount::default(), 3, true, false, LOG_LEVEL);
+    let mut black = AlphaBeta::new(ProportionCount::default(), 3, true, false, LOG_LEVEL);
 
     let mut boards = Vec::new();
 
@@ -31,8 +31,8 @@ fn _feature_testing() {
         boards.extend(new_boards);
     }
 
-    let mut lookahead = AlphaBeta::new(ProportionCount::default(), 3, false, LOG_LEVEL);
-    let mut new_lookahead = AlphaBeta::new(FeatureEval::new(weights1, 22.0), 3, false, LOG_LEVEL);
+    let mut lookahead = AlphaBeta::new(ProportionCount::default(), 3, false, false, LOG_LEVEL);
+    let mut new_lookahead = AlphaBeta::new(FeatureEval::new(weights1, 22.0), 3, false, false, LOG_LEVEL);
     let static_eval = ProportionCount::default();
     let new_static_eval = FeatureEval::new(weights1, 14.0);
 
@@ -96,8 +96,8 @@ fn _run_single_match(white_player: &mut dyn Engine, black_player: &mut dyn Engin
 
 fn _bench_single_match() {
     let mut logger = Logger::new(LOG_LEVEL);
-    let mut white = AlphaBeta::new(ProportionCount::default(), 3, false, LOG_LEVEL);
-    let mut black = AlphaBeta::new(ProportionCount::default(), 3, false, LOG_LEVEL);
+    let mut white = AlphaBeta::new(ProportionCount::default(), 3, false, false, LOG_LEVEL);
+    let mut black = AlphaBeta::new(ProportionCount::default(), 3, false, false, LOG_LEVEL);
 
     logger.time_start(1, "single match time");
     let (res, boards) = _run_single_match(&mut white, &mut black);
@@ -128,8 +128,8 @@ fn _run_concurrent_matches() {
 
             let mut logger = Logger::new(LOG_LEVEL);
             
-            let mut white = AlphaBeta::new(ProportionCount::default(), 1, false, LOG_LEVEL);
-            let mut black = AlphaBeta::new(FeatureEval::new(weights1, 20.0), 3, true, LOG_LEVEL);
+            let mut white = AlphaBeta::new(ProportionCount::default(), 1, false, false, LOG_LEVEL);
+            let mut black = AlphaBeta::new(FeatureEval::new(weights1, 20.0), 3, true, false, LOG_LEVEL);
             for _ in 1..=200 {
                 // println!("{}: Match {}", t, i);
                 logger.time_start(1, "single match time");

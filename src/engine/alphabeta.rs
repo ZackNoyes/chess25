@@ -27,6 +27,7 @@ pub struct AlphaBeta {
     static_evaluator: Box<dyn StaticEvaluator>,
     lookahead: u8,
     is_pessimistic: bool,
+    is_focussed: bool,
     position_table: PositionTable<ScoreInfo>,
     logger: Logger,
     // Debug info
@@ -39,7 +40,7 @@ pub struct AlphaBeta {
 impl AlphaBeta {
 
     pub fn new(static_evaluator: impl StaticEvaluator + 'static,
-        lookahead: u8, is_pessimistic: bool, log_level: u8
+        lookahead: u8, is_pessimistic: bool, is_focussed: bool, log_level: u8
     ) -> Self {
         assert!(lookahead > 0, "lookahead must be positive");
         let logger = Logger::new(log_level);
@@ -47,6 +48,7 @@ impl AlphaBeta {
             static_evaluator: Box::new(static_evaluator),
             lookahead,
             is_pessimistic,
+            is_focussed,
             position_table: PositionTable::new(&logger),
             logger,
             rounding_errors: 0,
@@ -79,6 +81,10 @@ impl AlphaBeta {
         assert!(depth <= self.lookahead);
         let mut bounds = bounds;
 
+        if depth == 3 {
+            println!("{}", board);
+        }
+
         self.branch_info[depth as usize].not_pruned += 1;
 
         // Check if there is an existing entry in the position table
@@ -100,7 +106,9 @@ impl AlphaBeta {
 
         self.branch_info[depth as usize].expanded += 1;
 
-        if depth == 0 || !matches!(board.get_status(), Status::InProgress) {
+        if depth <= (if self.is_focussed { 1 } else { 0 })
+            || !matches!(board.get_status(), Status::InProgress)
+        {
             let evaluation = self.static_evaluator.evaluate(board);
 
             self.position_table.insert(
@@ -182,13 +190,25 @@ impl AlphaBeta {
                 .expanded(nb_chance);
             
             let nb_result = self.get_scored_best_move(&nb_board, nb_bounds, depth - 1);
+            if depth == 3 {
+                println!("{} nb: {:?}",
+                    mv,
+                    nb_result);
+            }
             
             // Determine a probability weighted score for this move, or a prune
             let result = if let Result(nb_score, _) = nb_result {
                 let b_bounds = bounds
                     .both_decreased_by(nb_score * nb_chance)
                     .expanded(b_chance);
-                let b_result = self.get_scored_best_move(&b_board, b_bounds, depth - 1);
+                let b_result = self.get_scored_best_move(
+                    &b_board, b_bounds, depth - (if self.is_focussed { 2 } else { 1 })
+                );
+                if depth == 3 {
+                    println!("{}  b: {:?}",
+                        mv,
+                        b_result);
+                }
                 if let Result(b_score, _) = b_result {
                     let score =
                         b_score * b_chance
@@ -214,9 +234,16 @@ impl AlphaBeta {
                     self.update_table_for_result(board, depth, bounds, &res);
                     let num_pruned = n_moves - (i as u64) - 1;
                     self.branch_info[depth as usize - 1].pruned += num_pruned;
+                    self.branch_info[
+                        depth as usize - (if self.is_focussed { 2 } else { 1 })
+                    ].pruned += num_pruned;
                     return res;
                 }
             };
+
+            if depth == 3 {
+                println!("{}   : {:?}", mv, score);
+            }
 
             assert!(bounds.contains(score), "bounds should contain score \
                 because of the bounds on nb_score and b_score");
@@ -303,7 +330,7 @@ impl AlphaBeta {
 impl Engine for AlphaBeta {
 
     fn default(static_evaluator: impl StaticEvaluator + 'static) -> Self {
-        AlphaBeta::new(static_evaluator, 4, false, 10)
+        AlphaBeta::new(static_evaluator, 4, false, false, 10)
     }
 
     fn evaluate(&mut self, board: &MyBoard) -> Score {

@@ -29,13 +29,13 @@ impl JSInterface {
             engine_black: Box::new(
                 crate::engine::alphabeta::AlphaBeta::new(
                     crate::engine::feature_eval::FeatureEval::new(weights, 22.0),
-                    4, true, 10
+                    4, true, true, 10
                 )
             ),
             engine_white: Box::new(
                 crate::engine::alphabeta::AlphaBeta::new(
                     crate::engine::proportion_count::ProportionCount::default(),
-                    4, false, 10
+                    4, false, false, 10
                 )
             )
         }
