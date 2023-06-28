@@ -17,7 +17,7 @@ impl JSInterface {
     pub fn js_initial_interface(white_starts: bool) -> Self {
         let weights = crate::engine::feature_eval::Weights {
             pieces: [[1.0, 3.0, 3.0, 5.0, 9.0, 0.0], [-1.0, -3.0, -3.0, -5.0, -9.0, 0.0]],
-            king_danger: [-1.0, 1.0],
+            king_danger: [-0.5, 0.5],
             pawn_advancement: [1.0, -1.0],
             side_to_move: 3.0,
         };
