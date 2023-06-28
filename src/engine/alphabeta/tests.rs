@@ -40,13 +40,13 @@ fn test_self_game() {
             AlphaBeta::new(proportion_count::ProportionCount::default(), 3, false, false, 0)
         });
         check_inversions(&board, || {
-            AlphaBeta::new(proportion_count::ProportionCount::default(), 3, false, true, 0)
+            AlphaBeta::new(proportion_count::ProportionCount::default(), 4, false, true, 0)
         });
         check_inversions(&board, || {
             AlphaBeta::new(feature_eval::FeatureEval::new(weights, 20.0), 3, false, false, 0)
         });
         check_inversions(&board, || {
-            AlphaBeta::new(feature_eval::FeatureEval::new(weights, 20.0), 3, false, true, 0)
+            AlphaBeta::new(feature_eval::FeatureEval::new(weights, 20.0), 4, false, true, 0)
         });
         
     }

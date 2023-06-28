@@ -73,11 +73,6 @@ impl AlphaBeta {
     ///     the result
     /// - Otherwise, the `Move` may or may not be contained in the result
     ///     depending on whether the evaluation came from the position table
-    /// 
-    /// TODO: There are many more optimisations that could be done here. Areas
-    /// to look at would be why the iterdeep version is slower than the normal
-    /// version in ordinary cases. Perhaps a heuristic improvement would help
-    /// the ordering.
     fn get_scored_best_move(&mut self, board: &MyBoard, bounds: Bounds, depth: u8) -> SearchResult {
         assert!(bounds.valid());
         assert!(depth <= self.lookahead);
