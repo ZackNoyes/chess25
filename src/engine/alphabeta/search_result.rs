@@ -1,7 +1,7 @@
 use crate::Score;
 use chess::ChessMove;
 
-#[derive(Debug)]
+#[derive(Debug, PartialEq, Eq)]
 pub enum SearchResult {
     /// A score, optionally with a move that leads to that score.
     /// Most of the time, the move will be `None`, but it will be `Some` at the top

@@ -16,9 +16,9 @@ fn test_self_game() {
     let mut moves = 0;
 
     loop {
-        if !matches!(board.get_status(), Status::InProgress) { break; }
+        if !board.get_status().is_in_progress() { break; }
 
-        let mv = if matches!(board.get_side_to_move(), Color::White) {
+        let mv = if board.get_side_to_move() == Color::White {
             white.get_move(&board)
         } else {
             black.get_move(&board)

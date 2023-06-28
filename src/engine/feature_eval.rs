@@ -1,6 +1,6 @@
 use chess::{Color::*, Piece::*};
 
-use crate::{StaticEvaluator, MyBoard, Score, Status};
+use crate::{StaticEvaluator, MyBoard, Score};
 
 use serde::{Serialize, Deserialize};
 
@@ -30,7 +30,7 @@ pub struct Features {
 impl Features {
 
     pub fn from_board(board: &MyBoard) -> Features {
-        assert!(matches!(board.get_status(), Status::InProgress));
+        assert!(board.get_status().is_in_progress());
 
         let mut pieces = [[0.0; 6]; 2];
         let mut king_danger = [0.0; 2];
@@ -38,7 +38,7 @@ impl Features {
 
         for col in [White, Black] {
 
-            let my_pieces = if matches!(col, White) {
+            let my_pieces = if col == White {
                 board.get_white_pieces()
             } else {
                 board.get_black_pieces()
@@ -46,14 +46,14 @@ impl Features {
             let not_my_pieces = !my_pieces;
 
             for sq in
-                if matches!(col, White) { board.get_white_pieces() }
+                if col == White { board.get_white_pieces() }
                 else { board.get_black_pieces() }
             {
                 let Some((piece, _)) = board[sq]
                     else { panic!("piece not found on square {:?}", sq); };
                 pieces[col.to_index()][piece.to_index()] += 1.0;
     
-                if matches!(piece, King) {
+                if piece == King {
                     king_danger[col.to_index()] += ((
                         chess::get_knight_moves(sq)
                         | chess::get_bishop_moves(sq, my_pieces)
@@ -61,9 +61,9 @@ impl Features {
                     ) & not_my_pieces).popcnt() as f32;
                 }
     
-                if matches!(piece, Pawn) {
+                if piece == Pawn {
                     pawn_advancement[col.to_index()] +=
-                        if matches!(col, White) {
+                        if col == White {
                             sq.get_rank().to_index() as f32 - 1.0
                         } else {
                             6.0 - sq.get_rank().to_index() as f32
@@ -79,8 +79,7 @@ impl Features {
         }
 
         let side_to_move =
-            if matches!(board.get_side_to_move(), White) { 1.0 }
-                else { -1.0 };
+            if board.get_side_to_move() == White { 1.0 } else { -1.0 };
 
         Features {
             pieces,
@@ -100,7 +99,7 @@ pub struct FeatureEval {
 impl StaticEvaluator for FeatureEval {
     
     fn evaluate(&self, board: &MyBoard) -> Score {
-        if !matches!(board.get_status(), Status::InProgress) {
+        if !board.get_status().is_in_progress() {
             return self.evaluate_terminal(board).unwrap();
         }
 

@@ -17,7 +17,7 @@ use chess::{Color::*, ChessMove};
 
 use crate::logger::Logger;
 use crate::{Score, ONE};
-use crate::my_board::{MyBoard, Status};
+use crate::my_board::MyBoard;
 
 use super::Engine;
 use super::evaluator::StaticEvaluator;
@@ -101,7 +101,7 @@ impl AlphaBeta {
 
         self.branch_info[depth as usize].expanded += 1;
 
-        if depth <= finish_depth || !matches!(board.get_status(), Status::InProgress) {
+        if depth <= finish_depth || !board.get_status().is_in_progress() {
             let evaluation = self.static_evaluator.evaluate(board);
 
             // TODO: Take advantage of the colour redundancy
@@ -114,7 +114,7 @@ impl AlphaBeta {
                 else { Result(evaluation, None) }
         }
 
-        let is_maxing = matches!(board.get_side_to_move(), White);
+        let is_maxing = board.get_side_to_move() == White;
         let mut best_result = None;
 
         let mut moves = board.all_moves();
@@ -214,7 +214,7 @@ impl AlphaBeta {
             // which case we either continue or return, depending on the
             // direction of the prune
             let Result(score, _) = result else {
-                if is_maxing == matches!(result, Low) { continue; }
+                if is_maxing == (result == Low) { continue; }
                 else {
                     let res = if is_maxing { High } else { Low };
                     self.update_table_for_result(board, depth, bounds, &res);

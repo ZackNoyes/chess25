@@ -28,6 +28,15 @@ pub enum Status {
     Draw
 }
 
+impl Status {
+    pub fn is_in_progress(&self) -> bool {
+        match self {
+            Status::InProgress => true,
+            _ => false
+        }
+    }
+}
+
 impl MyBoard {
 
     pub fn get_side_to_move(&self) -> Color { self.side_to_move }
@@ -71,7 +80,7 @@ impl MyBoard {
         }
         zobrist_hash ^= Zobrist::castles(CastleRights::Both, Color::White);
         zobrist_hash ^= Zobrist::castles(CastleRights::Both, Color::Black);
-        if matches!(starting_color, Color::Black) {
+        if starting_color == Color::Black {
             zobrist_hash ^= Zobrist::color();
         }
         MyBoard {
@@ -90,7 +99,7 @@ impl MyBoard {
     pub fn moves_from(&self, sq: Square) -> Vec<ChessMove> {
         assert!(!self.awaiting_bonus, "Tried to request move from board awaiting bonus");
         
-        if !matches!(self.status, Status::InProgress) { return Vec::new(); }
+        if !self.status.is_in_progress() { return Vec::new(); }
         if self[sq].is_none() { return Vec::new(); }
         let (piece, color) = self[sq].unwrap();
 
@@ -116,7 +125,7 @@ impl MyBoard {
         }
         
         // Add the castling moves
-        if matches!(piece, Piece::King) {
+        if piece == Piece::King {
             if
                 self.get_castle_rights(color).has_kingside()
                 && all & CastleRights::Both.kingside_squares(color) == EMPTY
@@ -136,7 +145,7 @@ impl MyBoard {
         }
 
         // Transform backrank pawn moves to promotions
-        if matches!(piece, Piece::Pawn) {
+        if piece == Piece::Pawn {
             moves = moves.into_iter().map(|m| {
                 if m.get_dest().get_rank() == color.to_their_backrank() {
                     PROMOTION_PIECES.iter().map(|&p| {
@@ -182,8 +191,8 @@ impl MyBoard {
 
         // Detect 50 non-pawn non-capture moves for a draw
         if
-            matches!(self[m.get_dest()], Some(_))
-            || matches!(p, Piece::Pawn)
+            self[m.get_dest()].is_some()
+            || p == Piece::Pawn
         {
             self.dead_moves = 0;
         } else {
@@ -199,7 +208,7 @@ impl MyBoard {
         self.set_piece(m.get_source(), None);
 
         // Handle castling
-        if matches!(p, Piece::King) && matches!(m.get_source().get_file(), File::E) {
+        if p == Piece::King && m.get_source().get_file() == File::E {
             let mut src = None; let mut dst = None;
             if m.get_dest().get_file() == File::G {
                 src = Some(if c == Color::White { Square::H1 } else { Square::H8 });
@@ -262,7 +271,7 @@ impl MyBoard {
         self.apply_bonus_unchecked(is_bonus);
 
         // Detect no moves draw
-        if self.all_moves().is_empty() && matches!(self.status, Status::InProgress) {
+        if self.all_moves().is_empty() && self.status.is_in_progress() {
             self.status = Status::Draw;
         }
     }
@@ -392,7 +401,7 @@ impl std::fmt::Display for MyBoard {
         }
         let mut s = String::new();
         s.push_str("\n");
-        if matches!(self.status, Status::InProgress) {
+        if self.status.is_in_progress() {
             s.push_str(format!("    {} to move\n", DColor(self.side_to_move)).as_str());
         } else {
             s.push_str(format!("{}\n", self.status).as_str());

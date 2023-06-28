@@ -3,8 +3,8 @@ use chess::Color;
 
 use crate::Score;
 use crate::logger::Logger;
-use crate::my_board::{MyBoard, Status};
-use super::position_table::{PositionTable};
+use crate::my_board::MyBoard;
+use super::position_table::PositionTable;
 use super::{Engine, StaticEvaluator};
 
 pub struct Minimax {
@@ -32,7 +32,7 @@ impl Minimax {
             return score;
         }
 
-        if cutoff == 0 || !matches!(board.get_status(), Status::InProgress) {
+        if cutoff == 0 || !board.get_status().is_in_progress() {
             let evaluation = self.static_evaluator.evaluate(board);
             self.position_table.insert_both_colors(board, cutoff, evaluation);
             return evaluation;
@@ -49,7 +49,7 @@ impl Minimax {
             + self.evaluate_with_cutoff(&no_bonus_board, cutoff - 1) * crate::no_bonus_chance()
         });
 
-        let score = if matches!(board.get_side_to_move(), Color::White) {
+        let score = if board.get_side_to_move() == Color::White {
             scores.max_by(|a, b| a.partial_cmp(b).unwrap()).unwrap()
         } else {
             scores.min_by(|a, b| a.partial_cmp(b).unwrap()).unwrap()

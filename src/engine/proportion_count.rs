@@ -1,7 +1,7 @@
 use chess::Color;
 use wasm_bindgen::prelude::wasm_bindgen;
 
-use crate::{my_board::{MyBoard, Status}, Score};
+use crate::{my_board::MyBoard, Score};
 use super::StaticEvaluator;
 
 const PIECE_VALUES: [u8; 6] = [1, 3, 3, 5, 9, 1];
@@ -14,7 +14,7 @@ impl StaticEvaluator for ProportionCount {
 
     fn evaluate(&self, board: &MyBoard) -> Score {
         
-        if !matches!(board.get_status(), Status::InProgress) {
+        if !board.get_status().is_in_progress() {
             return self.evaluate_terminal(board).unwrap();
         }
 

@@ -53,7 +53,7 @@ fn _feature_testing() {
         println!("Features eval: {}", s2_e);
         println!("Lookahead eval: {}", l_e);
         println!("Features lookahead eval: {}", l2_e);
-        if matches!(board.get_status(), Status::InProgress) {
+        if board.get_status().is_in_progress() {
             println!("Features: {:?}", Features::from_board(board));
         }
         println!();
@@ -79,9 +79,9 @@ fn _run_single_match(white_player: &mut dyn Engine, black_player: &mut dyn Engin
     let mut boards = vec![board];
 
     loop {
-        if !matches!(board.get_status(), Status::InProgress) { break; }
+        if board.get_status().is_in_progress() { break; }
 
-        let mv = if matches!(board.get_side_to_move(), Color::White) {
+        let mv = if board.get_side_to_move() == Color::White {
             white_player.get_move(&board)
         } else {
             black_player.get_move(&board)
