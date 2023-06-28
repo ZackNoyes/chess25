@@ -161,7 +161,6 @@ impl AlphaBeta {
             // This has the effect of making the AI more defensive.
             // This makes it more fun to play against, and also probably more
             // consistent against weaker opponents.
-            // TODO: Replace this with a better heuristic
             let mut b_chance = crate::bonus_chance();
             let mut nb_chance = crate::no_bonus_chance();
 
