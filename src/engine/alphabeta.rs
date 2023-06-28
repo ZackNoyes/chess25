@@ -117,7 +117,7 @@ impl AlphaBeta {
         let is_maxing = board.get_side_to_move() == White;
         let mut best_result = None;
 
-        let mut moves = board.all_moves();
+        let mut moves: Vec<_> = board.all_moves().collect(); // TODO: don't collect this iterator
         let n_moves = moves.len() as u64;
 
         if depth > 1 {
@@ -154,7 +154,6 @@ impl AlphaBeta {
 
         for (i, mv) in moves.into_iter().enumerate() {
             
-            // TODO: save next moves calculations
             let (b_board, nb_board) = self.next_boards(board, mv, depth > finish_depth + 1);
 
             // Define the bonus and non-bonus chances in an adjusted way.

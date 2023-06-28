@@ -271,14 +271,16 @@ impl MyBoard {
         self.apply_bonus_unchecked(is_bonus);
 
         // Detect no moves draw
-        if self.all_moves().is_empty() && self.status.is_in_progress() {
+        if self.all_moves().next().is_none() && self.status.is_in_progress() {
             self.status = Status::Draw;
         }
     }
 
-    pub fn all_moves(&self) -> Vec<ChessMove> {
-        ALL_SQUARES.iter().map(|&sq| self.moves_from(sq))
-            .collect::<Vec<Vec<ChessMove>>>().concat()
+    pub fn all_moves(&self) -> impl Iterator<Item=ChessMove> + '_ {
+        match self.side_to_move {
+            Color::White => self.white_pieces,
+            Color::Black => self.black_pieces,
+        }.flat_map(move |sq| self.moves_from(sq))
     }
 
     fn color_combined(&self, c: Color) -> BitBoard {

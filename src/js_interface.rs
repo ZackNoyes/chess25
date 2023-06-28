@@ -18,7 +18,7 @@ impl JSInterface {
         let weights = crate::engine::feature_eval::Weights {
             pieces: [[1.0, 3.0, 3.0, 5.0, 9.0, 0.0], [-1.0, -3.0, -3.0, -5.0, -9.0, 0.0]],
             king_danger: [-0.5, 0.5],
-            pawn_advancement: [1.0, -1.0],
+            pawn_advancement: [0.5, -0.5],
             side_to_move: 3.0,
         };
         crate::utils::set_panic_hook();
@@ -29,7 +29,7 @@ impl JSInterface {
             engine_black: Box::new(
                 crate::engine::alphabeta::AlphaBeta::new(
                     crate::engine::feature_eval::FeatureEval::new(weights, 22.0),
-                    4, true, true, 10
+                    6, true, true, 10
                 )
             ),
             engine_white: Box::new(

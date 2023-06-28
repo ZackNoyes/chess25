@@ -38,7 +38,7 @@ impl Minimax {
             return evaluation;
         }
 
-        let scores = board.all_moves().into_iter().map(|mv| {
+        let scores = board.all_moves().map(|mv| {
 
             // At the last layer, we skip the draw check, since it's really
             // rare and also the most expensive part

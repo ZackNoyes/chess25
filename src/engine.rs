@@ -21,7 +21,7 @@ pub trait Engine {
 
     fn get_move(&mut self, board: &MyBoard) -> ChessMove {
 
-        let move_evaluations = board.all_moves().into_iter().map(|mv| {
+        let move_evaluations = board.all_moves().map(|mv| {
             let (bonus_board, no_bonus_board) = self.next_boards(board, mv, true);
             // Assumes the chance of bonus and chance of no bonus
             let evaluation = self.evaluate(&bonus_board) * crate::bonus_chance()
