@@ -43,6 +43,8 @@ impl AlphaBeta {
         lookahead: u8, is_pessimistic: bool, is_focussed: bool, log_level: u8
     ) -> Self {
         assert!(lookahead > 0, "lookahead must be positive");
+        assert!(!is_focussed || lookahead > 1,
+            "lookahead must be greater than 1 if focussed");
         let logger = Logger::new(log_level);
         AlphaBeta {
             static_evaluator: Box::new(static_evaluator),
@@ -81,9 +83,7 @@ impl AlphaBeta {
         assert!(depth <= self.lookahead);
         let mut bounds = bounds;
 
-        if depth == 3 {
-            println!("{}", board);
-        }
+        let finish_depth = if self.is_focussed { 1 } else { 0 };
 
         self.branch_info[depth as usize].not_pruned += 1;
 
@@ -106,11 +106,10 @@ impl AlphaBeta {
 
         self.branch_info[depth as usize].expanded += 1;
 
-        if depth <= (if self.is_focussed { 1 } else { 0 })
-            || !matches!(board.get_status(), Status::InProgress)
-        {
+        if depth <= finish_depth || !matches!(board.get_status(), Status::InProgress) {
             let evaluation = self.static_evaluator.evaluate(board);
 
+            // TODO: Take advantage of the colour redundancy
             self.position_table.insert(
                 board, depth, ScoreInfo::from_score(evaluation));
 
@@ -147,7 +146,9 @@ impl AlphaBeta {
                 let key = key.unwrap_or_else(|| {
                     self.iter_deep_failures += 1;
                     let eval = self.static_evaluator.evaluate(&nb_board);
-                    self.position_table.insert_both_colors(&nb_board, 0, ScoreInfo::from_score(eval));
+                    // TODO: Take advantage of the colour redundancy
+                    self.position_table.insert(&nb_board, finish_depth,
+                        ScoreInfo::from_score(eval));
                     eval
                 });
 
@@ -158,7 +159,8 @@ impl AlphaBeta {
 
         for (i, mv) in moves.into_iter().enumerate() {
             
-            let (b_board, nb_board) = self.next_boards(board, mv, depth > 1);
+            // TODO: save next moves calculations
+            let (b_board, nb_board) = self.next_boards(board, mv, depth > finish_depth + 1);
 
             // Define the bonus and non-bonus chances in an adjusted way.
             // This has the effect of making the AI more defensive.
@@ -190,11 +192,6 @@ impl AlphaBeta {
                 .expanded(nb_chance);
             
             let nb_result = self.get_scored_best_move(&nb_board, nb_bounds, depth - 1);
-            if depth == 3 {
-                println!("{} nb: {:?}",
-                    mv,
-                    nb_result);
-            }
             
             // Determine a probability weighted score for this move, or a prune
             let result = if let Result(nb_score, _) = nb_result {
@@ -202,13 +199,8 @@ impl AlphaBeta {
                     .both_decreased_by(nb_score * nb_chance)
                     .expanded(b_chance);
                 let b_result = self.get_scored_best_move(
-                    &b_board, b_bounds, depth - (if self.is_focussed { 2 } else { 1 })
+                    &b_board, b_bounds, depth - if self.is_focussed { 2 } else { 1 }
                 );
-                if depth == 3 {
-                    println!("{}  b: {:?}",
-                        mv,
-                        b_result);
-                }
                 if let Result(b_score, _) = b_result {
                     let score =
                         b_score * b_chance
@@ -235,15 +227,11 @@ impl AlphaBeta {
                     let num_pruned = n_moves - (i as u64) - 1;
                     self.branch_info[depth as usize - 1].pruned += num_pruned;
                     self.branch_info[
-                        depth as usize - (if self.is_focussed { 2 } else { 1 })
+                        depth as usize - if self.is_focussed { 2 } else { 1 }
                     ].pruned += num_pruned;
                     return res;
                 }
             };
-
-            if depth == 3 {
-                println!("{}   : {:?}", mv, score);
-            }
 
             assert!(bounds.contains(score), "bounds should contain score \
                 because of the bounds on nb_score and b_score");
@@ -293,6 +281,8 @@ impl AlphaBeta {
         self.position_table.insert(board, depth, new);
     }
 
+    /// This assumes we are not using focussed mode, so the returned reasoning
+    /// will be wrong otherwise.
     fn get_line(&mut self, board: &MyBoard) -> js_sys::Array {
         let line = js_sys::Array::new();
 
@@ -343,7 +333,7 @@ impl Engine for AlphaBeta {
     fn get_move(&mut self, board: &MyBoard) -> ChessMove {
         self.logger.time_start(2, "move calculation");
 
-        for depth in 1..self.lookahead {
+        for depth in 2..self.lookahead {
 
             self.logger.time_start(7, &format!("depth {}", depth));
 

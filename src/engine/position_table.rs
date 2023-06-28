@@ -4,7 +4,7 @@ use crate::{my_board::MyBoard, logger::Logger};
 // 2^26 is the maximum we can get with Vec's allocation (for 32 bytes)
 // I've scaled it down a bit since the allocation does take quite a while,
 // especially with the debug build
-const TABLE_SIZE: usize = 1 << 22;
+const TABLE_SIZE: usize = 1 << 24;
 
 #[derive(Clone, Copy)]
 struct Parameters {
