@@ -282,16 +282,16 @@ impl AlphaBeta {
         // This could lead to incompatible ranges.
         let new = match result {
             Result(score, _) => ScoreInfo::from_score(*score),
-            Low => ScoreInfo::from_max_score(bounds.min.expect(
-                "\
-                shouldn't return Low if there is no minimum bound\
-            ",
-            )),
-            High => ScoreInfo::from_min_score(bounds.max.expect(
-                "\
-                shouldn't return High if there is no maximum bound\
-            ",
-            )),
+            Low => ScoreInfo::from_max_score(
+                bounds
+                    .min
+                    .expect("shouldn't return Low if there is no minimum bound"),
+            ),
+            High => ScoreInfo::from_min_score(
+                bounds
+                    .max
+                    .expect("shouldn't return High if there is no maximum bound"),
+            ),
         };
         self.position_table.insert(board, depth, new);
     }
