@@ -1,0 +1,10 @@
+edition = "2021"
+error_on_line_overflow = true
+error_on_unformatted = true
+fn_params_layout = "Compressed"
+fn_single_line = true
+imports_granularity = "Crate"
+group_imports = "StdExternalCrate"
+overflow_delimited_expr = true
+inline_attribute_width = 50
+use_field_init_shorthand = true
