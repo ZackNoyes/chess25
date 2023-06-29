@@ -30,10 +30,7 @@ pub enum Status {
 
 impl Status {
     pub fn is_in_progress(&self) -> bool {
-        match self {
-            Status::InProgress => true,
-            _ => false
-        }
+        matches!(self, Status::InProgress)
     }
 }
 
@@ -309,9 +306,7 @@ impl MyBoard {
             _ => self.status,
         };
 
-        let tmp = self.white_pieces;
-        self.white_pieces = self.black_pieces;
-        self.black_pieces = tmp;
+        std::mem::swap(&mut self.white_pieces, &mut self.black_pieces);
 
         for sq in ALL_SQUARES {
             self.set_piece(sq, self[sq].map(|(p, c)| (p, !c)));
@@ -399,10 +394,10 @@ impl std::fmt::Display for Status {
 impl std::fmt::Display for MyBoard {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         if self.awaiting_bonus {
-            return write!(f, "Board which is awaiting bonus move\n");
+            return writeln!(f, "Board which is awaiting bonus move");
         }
         let mut s = String::new();
-        s.push_str("\n");
+        s.push('\n');
         if self.status.is_in_progress() {
             s.push_str(format!("    {} to move\n", DColor(self.side_to_move)).as_str());
         } else {
