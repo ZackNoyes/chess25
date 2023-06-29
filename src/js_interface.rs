@@ -34,17 +34,19 @@ impl JSInterface {
             }),
             engine_black: Box::new(crate::engine::alphabeta::AlphaBeta::new(
                 crate::engine::feature_eval::FeatureEval::new(weights, 22.0),
-                6,
+                7,
                 true,
                 true,
                 4,
+                1000,
             )),
             engine_white: Box::new(crate::engine::alphabeta::AlphaBeta::new(
                 crate::engine::proportion_count::ProportionCount::default(),
-                4,
+                6,
                 false,
                 false,
                 4,
+                1000,
             )),
         }
     }

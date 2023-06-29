@@ -9,8 +9,8 @@ use crate::engine::{
 #[test]
 #[ignore]
 fn test_self_game() {
-    let mut white = AlphaBeta::new(ProportionCount::default(), 2, false, true, 10);
-    let mut black = AlphaBeta::new(ProportionCount::default(), 2, true, false, 10);
+    let mut white = AlphaBeta::new(ProportionCount::default(), 2, false, true, 10, 1000);
+    let mut black = AlphaBeta::new(ProportionCount::default(), 2, true, false, 10, 1000);
 
     let mut board = MyBoard::initial_board(Color::White);
 
@@ -33,7 +33,7 @@ fn test_self_game() {
         println!("--------------------");
         println!("{}", board);
 
-        let weights = Weights {
+        let ws = Weights {
             pieces: [[1.0, 3.0, 3.0, 5.0, 9.0, 0.0], [
                 -1.0, -3.0, -3.0, -5.0, -9.0, 0.0,
             ]],
@@ -42,16 +42,16 @@ fn test_self_game() {
             side_to_move: 3.0,
         };
         check_inversions(&board, || {
-            AlphaBeta::new(ProportionCount::default(), 3, false, false, 0)
+            AlphaBeta::new(ProportionCount::default(), 3, false, false, 0, 100000)
         });
         check_inversions(&board, || {
-            AlphaBeta::new(ProportionCount::default(), 4, false, true, 0)
+            AlphaBeta::new(ProportionCount::default(), 4, false, true, 0, 100000)
         });
         check_inversions(&board, || {
-            AlphaBeta::new(FeatureEval::new(weights, 20.0), 3, false, false, 0)
+            AlphaBeta::new(FeatureEval::new(ws, 20.0), 3, false, false, 0, 100000)
         });
         check_inversions(&board, || {
-            AlphaBeta::new(FeatureEval::new(weights, 20.0), 4, false, true, 0)
+            AlphaBeta::new(FeatureEval::new(ws, 20.0), 4, false, true, 0, 100000)
         });
     }
 }
@@ -62,6 +62,8 @@ fn check_inversions(board: &MyBoard, engine_creator: impl Fn() -> AlphaBeta) {
     // Board 2 is the normal board with castling rights stripped.
     // Board 3 should match 2.
     // Board 4 should match 2.
+
+    // TODO: Fix the fact that the test fails by a bit
 
     let mut boards = [*board; 5];
     boards[1].invert_ranks_and_colors();
@@ -77,7 +79,9 @@ fn check_inversions(board: &MyBoard, engine_creator: impl Fn() -> AlphaBeta) {
         .enumerate()
         .map(|(i, b)| {
             let mut engine = engine_creator();
-            let Result(sc1, _) = engine.get_scored_best_move(b, Bounds::widest(), 3, false)
+            let Result(sc1, _) = engine.get_scored_best_move(
+                b, Bounds::widest(), engine.max_lookahead, false, Deadline::from_now(100000)
+            )
             else { panic!("widest bounds should return a result"); };
             if i == 1 || i == 4 {
                 ONE - sc1

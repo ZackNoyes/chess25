@@ -1,5 +1,6 @@
 use fixed::{types::extra::U31, FixedU32};
 
+mod deadline;
 mod engine;
 mod js_interface;
 mod logger;

@@ -16,11 +16,12 @@ use chess::{ChessMove, Color::*};
 use either::Either::{Left, Right};
 
 use super::{evaluator::StaticEvaluator, position_table::PositionTable, Engine};
-use crate::{logger::Logger, my_board::MyBoard, Score, ONE};
+use crate::{deadline::Deadline, logger::Logger, my_board::MyBoard, Score, ONE};
 
 pub struct AlphaBeta {
     static_evaluator: Box<dyn StaticEvaluator>,
     max_lookahead: u8,
+    max_time: u64,
     is_pessimistic: bool,
     is_focussed: bool,
     position_table: PositionTable<ScoreInfo>,
@@ -35,7 +36,7 @@ impl AlphaBeta {
     /// Using a larger log level may have performance costs
     pub fn new(
         static_evaluator: impl StaticEvaluator + 'static, max_lookahead: u8, is_pessimistic: bool,
-        is_focussed: bool, log_level: u8,
+        is_focussed: bool, log_level: u8, max_time: u64,
     ) -> Self {
         assert!(max_lookahead > 0, "lookahead must be positive");
         assert!(
@@ -46,6 +47,7 @@ impl AlphaBeta {
         AlphaBeta {
             static_evaluator: Box::new(static_evaluator),
             max_lookahead,
+            max_time,
             is_pessimistic,
             is_focussed,
             position_table: PositionTable::new(&logger),
@@ -69,9 +71,14 @@ impl AlphaBeta {
     /// - Otherwise, the `Move` may or may not be contained in the result
     ///   depending on whether the evaluation came from the position table
     fn get_scored_best_move(
-        &mut self, board: &MyBoard, bounds: Bounds, depth: u8, get_move: bool,
+        &mut self, board: &MyBoard, bounds: Bounds, depth: u8, get_move: bool, deadline: Deadline,
     ) -> SearchResult {
         assert!(bounds.valid());
+
+        if deadline.expired() {
+            return Timeout;
+        }
+
         let mut bounds = bounds;
 
         let finish_depth = if self.is_focussed { 1 } else { 0 };
@@ -187,7 +194,8 @@ impl AlphaBeta {
             // bound.
             let nb_bounds = bounds.min_decreased_by(b_chance).expanded(nb_chance);
 
-            let nb_result = self.get_scored_best_move(&nb_board, nb_bounds, depth - 1, false);
+            let nb_result =
+                self.get_scored_best_move(&nb_board, nb_bounds, depth - 1, false, deadline);
 
             // Determine a probability weighted score for this move, or a prune
             let result = if let Result(nb_score, _) = nb_result {
@@ -199,6 +207,7 @@ impl AlphaBeta {
                     b_bounds,
                     depth - if self.is_focussed { 2 } else { 1 },
                     false,
+                    deadline,
                 );
                 if let Result(b_score, _) = b_result {
                     let score = b_score * b_chance + nb_score * nb_chance;
@@ -224,6 +233,9 @@ impl AlphaBeta {
             // which case we either continue or return, depending on the
             // direction of the prune
             let Result(score, _) = result else {
+                if result == Timeout {
+                    return Timeout;
+                }
                 if is_maxing == (result == Low) { continue; }
                 else {
                     let res = if is_maxing { High } else { Low };
@@ -289,6 +301,7 @@ impl AlphaBeta {
                     .max
                     .expect("shouldn't return High if there is no maximum bound"),
             ),
+            Timeout => return,
         };
         self.position_table.insert(board, depth, new);
     }
@@ -296,14 +309,11 @@ impl AlphaBeta {
 
 impl Engine for AlphaBeta {
     fn default(static_evaluator: impl StaticEvaluator + 'static) -> Self {
-        AlphaBeta::new(static_evaluator, 4, false, false, 10)
+        AlphaBeta::new(static_evaluator, 4, false, false, 10, 10000)
     }
 
-    fn evaluate(&mut self, board: &MyBoard) -> Score {
-        match self.get_scored_best_move(board, Bounds::widest(), self.max_lookahead, false) {
-            Result(score, _) => score,
-            _ => panic!("pruning should not happen with the widest bounds"),
-        }
+    fn evaluate(&mut self, _board: &MyBoard) -> Score {
+        unimplemented!();
     }
 
     fn get_move(&mut self, board: &MyBoard) -> ChessMove {
@@ -311,6 +321,7 @@ impl Engine for AlphaBeta {
             .log_lazy(5, || format!("Getting move for board:\n{}", board));
 
         self.logger.time_start(2, "full move calculation");
+        let deadline = Deadline::from_now(self.max_time);
 
         let mut best_move = None;
 
@@ -322,10 +333,16 @@ impl Engine for AlphaBeta {
 
             self.logger.time_start(4, &format!("depth {}", depth));
 
-            let (s, mv) = match self.get_scored_best_move(board, Bounds::widest(), depth, true) {
-                Result(s, Some(mv)) => (s, mv),
-                _ => panic!("actual move should be returned"),
-            };
+            let (s, mv) =
+                match self.get_scored_best_move(board, Bounds::widest(), depth, true, deadline) {
+                    Result(s, Some(mv)) => (s, mv),
+                    Timeout => {
+                        self.logger.log(4, &format!("depth {}: timeout", depth));
+                        self.logger.time_end(4, &format!("depth {}", depth));
+                        break;
+                    }
+                    _ => panic!("actual move should be returned"),
+                };
 
             self.logger
                 .log(4, &format!("depth {}: move {} with score {}", depth, mv, s));
