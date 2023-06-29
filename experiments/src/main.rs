@@ -16,11 +16,11 @@ fn main() { _run_concurrent_matches(); }
 
 fn _feature_testing() {
     let weights1 = Weights {
-        pieces: [[1.0, 3.0, 3.0, 5.0, 9.0, 1.0], [
-            -1.0, -3.0, -3.0, -5.0, -9.0, 1.0,
+        pieces: [[1.0, 3.0, 3.0, 5.0, 9.0, 0.0], [
+            -1.0, -3.0, -3.0, -5.0, -9.0, 0.0,
         ]],
-        king_danger: [0.0, 0.0],
-        pawn_advancement: [0.0, 0.0],
+        king_danger: [-0.5, 0.5],
+        pawn_advancement: [0.5, -0.5],
         side_to_move: 3.0,
     };
 
@@ -183,7 +183,15 @@ fn _run_concurrent_matches() {
                 pieces: [[1.0, 3.0, 3.0, 5.0, 9.0, 0.0], [
                     -1.0, -3.0, -3.0, -5.0, -9.0, 0.0,
                 ]],
-                king_danger: [-1.0, 1.0],
+                king_danger: [-0.5, 0.5],
+                pawn_advancement: [0.5, -0.5],
+                side_to_move: 3.0,
+            };
+            let weights2 = Weights {
+                pieces: [[1.0, 3.0, 3.0, 5.0, 9.0, 0.0], [
+                    -1.0, -3.0, -3.0, -5.0, -9.0, 0.0,
+                ]],
+                king_danger: [-0.5, 0.5],
                 pawn_advancement: [0.5, -0.5],
                 side_to_move: 3.0,
             };
@@ -191,7 +199,7 @@ fn _run_concurrent_matches() {
             let mut logger = Logger::new(LOG_LEVEL);
 
             let mut white = AlphaBeta::new(
-                FeatureEval::new(weights1, 20.0),
+                FeatureEval::new(weights1, 15.0),
                 10,
                 true,
                 false,
@@ -199,10 +207,10 @@ fn _run_concurrent_matches() {
                 100,
             );
             let mut black = AlphaBeta::new(
-                FeatureEval::new(weights1, 20.0),
+                FeatureEval::new(weights2, 15.0),
                 10,
                 true,
-                true,
+                false,
                 LOG_LEVEL,
                 100,
             );

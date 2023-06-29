@@ -33,7 +33,7 @@ impl JSInterface {
                 Color::Black
             }),
             engine_black: Box::new(crate::engine::alphabeta::AlphaBeta::new(
-                crate::engine::feature_eval::FeatureEval::new(weights, 22.0),
+                crate::engine::feature_eval::FeatureEval::new(weights, 15.0),
                 10,
                 true,
                 true,
@@ -41,7 +41,7 @@ impl JSInterface {
                 1000,
             )),
             engine_white: Box::new(crate::engine::alphabeta::AlphaBeta::new(
-                crate::engine::feature_eval::FeatureEval::new(weights, 22.0),
+                crate::engine::feature_eval::FeatureEval::new(weights, 15.0),
                 10,
                 true,
                 false,
