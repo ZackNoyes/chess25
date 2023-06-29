@@ -295,38 +295,6 @@ impl AlphaBeta {
         };
         self.position_table.insert(board, depth, new);
     }
-
-    /// This assumes we are not using focussed mode, so the returned reasoning
-    /// will be wrong otherwise.
-    fn get_line(&mut self, board: &MyBoard) -> js_sys::Array {
-        let line = js_sys::Array::new();
-
-        if let Result(score, None) =
-            self.get_scored_best_move(board, Bounds::widest(), self.lookahead)
-        {
-            line.push(&format!("score: {}", score).into());
-        } else {
-            let Result(score, Some(mv)) =
-                self.get_scored_best_move(board, Bounds::widest(), self.lookahead)
-                else { panic!(); };
-
-            line.push(&format!("score: {}", score).into());
-
-            self.lookahead -= 1; // we adjust this as we recurse
-
-            line.push(&format!("side to move: {:?}", board.get_side_to_move()).into());
-
-            line.push(&format!("best move: {} to {}", mv.get_source(), mv.get_dest()).into());
-
-            let (b_board, nb_board) = self.next_boards(board, mv, true);
-            line.push(&self.get_line(&nb_board));
-            line.push(&self.get_line(&b_board));
-
-            self.lookahead += 1;
-        }
-
-        line
-    }
 }
 
 impl Engine for AlphaBeta {
@@ -393,10 +361,6 @@ impl Engine for AlphaBeta {
         self.logger.time_end(2, "move calculation");
 
         self.log_info();
-
-        self.logger.time_start(8, "reasoning generation");
-        self.logger.clone().log_lazy_arr(8, || self.get_line(board));
-        self.logger.time_end(8, "reasoning generation");
 
         mv
     }
