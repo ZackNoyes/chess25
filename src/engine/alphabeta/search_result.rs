@@ -1,5 +1,6 @@
-use crate::Score;
 use chess::ChessMove;
+
+use crate::Score;
 
 #[derive(Debug, PartialEq, Eq)]
 pub enum SearchResult {

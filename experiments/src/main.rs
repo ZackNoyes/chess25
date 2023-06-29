@@ -1,21 +1,24 @@
-use chess::{ALL_COLORS, Color};
-use random_chess::{Engine, MyBoard, Status, Logger, bonus_chance};
-use random_chess::{AlphaBeta, StaticEvaluator, ProportionCount, FeatureEval, Weights};
-use random_chess::Features;
-use rand::{thread_rng, Rng};
+use std::{
+    sync::{Arc, Mutex},
+    thread,
+};
 
-use std::sync::{Arc, Mutex};
-use std::thread;
+use chess::{Color, ALL_COLORS};
+use rand::{thread_rng, Rng};
+use random_chess::{
+    bonus_chance, AlphaBeta, Engine, FeatureEval, Features, Logger, MyBoard, ProportionCount,
+    StaticEvaluator, Status, Weights,
+};
 
 const LOG_LEVEL: u8 = 1;
 
-fn main() {
-    _run_concurrent_matches();
-}
+fn main() { _run_concurrent_matches(); }
 
 fn _feature_testing() {
     let weights1 = Weights {
-        pieces: [[1.0, 3.0, 3.0, 5.0, 9.0, 1.0], [-1.0, -3.0, -3.0, -5.0, -9.0, 1.0]],
+        pieces: [[1.0, 3.0, 3.0, 5.0, 9.0, 1.0], [
+            -1.0, -3.0, -3.0, -5.0, -9.0, 1.0,
+        ]],
         king_danger: [0.0, 0.0],
         pawn_advancement: [0.0, 0.0],
         side_to_move: 3.0,
@@ -32,7 +35,8 @@ fn _feature_testing() {
     }
 
     let mut lookahead = AlphaBeta::new(ProportionCount::default(), 3, false, false, LOG_LEVEL);
-    let mut new_lookahead = AlphaBeta::new(FeatureEval::new(weights1, 22.0), 3, false, false, LOG_LEVEL);
+    let mut new_lookahead =
+        AlphaBeta::new(FeatureEval::new(weights1, 22.0), 3, false, false, LOG_LEVEL);
     let static_eval = ProportionCount::default();
     let new_static_eval = FeatureEval::new(weights1, 14.0);
 
@@ -64,22 +68,39 @@ fn _feature_testing() {
         magnitude_error2 += (s2_e - 0.5).abs() - (l2_e - 0.5).abs();
     }
 
-    println!("Average error propcount {}", total_error / boards.len() as f32);
-    println!("Average error features {}", total_error2 / boards.len() as f32);
-    println!("Average self-error features {}", total_error3 / boards.len() as f32);
-    println!("Magnitude error features {}", magnitude_error / boards.len() as f32);
-    println!("Magnitude self-error features {}", magnitude_error2 / boards.len() as f32);
+    println!(
+        "Average error propcount {}",
+        total_error / boards.len() as f32
+    );
+    println!(
+        "Average error features {}",
+        total_error2 / boards.len() as f32
+    );
+    println!(
+        "Average self-error features {}",
+        total_error3 / boards.len() as f32
+    );
+    println!(
+        "Magnitude error features {}",
+        magnitude_error / boards.len() as f32
+    );
+    println!(
+        "Magnitude self-error features {}",
+        magnitude_error2 / boards.len() as f32
+    );
 }
 
-fn _run_single_match(white_player: &mut dyn Engine, black_player: &mut dyn Engine)
-    -> (Status, Vec<MyBoard>)
-{
+fn _run_single_match(
+    white_player: &mut dyn Engine, black_player: &mut dyn Engine,
+) -> (Status, Vec<MyBoard>) {
     let mut rng = thread_rng();
     let mut board = MyBoard::initial_board(ALL_COLORS[rng.gen_range(0..=1)]);
     let mut boards = vec![board];
 
     loop {
-        if board.get_status().is_in_progress() { break; }
+        if board.get_status().is_in_progress() {
+            break;
+        }
 
         let mv = if board.get_side_to_move() == Color::White {
             white_player.get_move(&board)
@@ -106,7 +127,6 @@ fn _bench_single_match() {
 }
 
 fn _run_concurrent_matches() {
-
     let white_wins = Arc::new(Mutex::new(0));
     let black_wins = Arc::new(Mutex::new(0));
     let draws = Arc::new(Mutex::new(0));
@@ -118,18 +138,20 @@ fn _run_concurrent_matches() {
         let black_wins = Arc::clone(&black_wins);
         let draws = Arc::clone(&draws);
         thread_handles.push(thread::spawn(move || {
-            
             let weights1 = Weights {
-                pieces: [[1.0, 3.0, 3.0, 5.0, 9.0, 0.0], [-1.0, -3.0, -3.0, -5.0, -9.0, 0.0]],
+                pieces: [[1.0, 3.0, 3.0, 5.0, 9.0, 0.0], [
+                    -1.0, -3.0, -3.0, -5.0, -9.0, 0.0,
+                ]],
                 king_danger: [-1.0, 1.0],
                 pawn_advancement: [0.5, -0.5],
                 side_to_move: 3.0,
             };
 
             let mut logger = Logger::new(LOG_LEVEL);
-            
+
             let mut white = AlphaBeta::new(ProportionCount::default(), 1, false, false, LOG_LEVEL);
-            let mut black = AlphaBeta::new(FeatureEval::new(weights1, 20.0), 3, true, false, LOG_LEVEL);
+            let mut black =
+                AlphaBeta::new(FeatureEval::new(weights1, 20.0), 3, true, false, LOG_LEVEL);
             for _ in 1..=200 {
                 // println!("{}: Match {}", t, i);
                 logger.time_start(1, "single match time");
@@ -140,11 +162,15 @@ fn _run_concurrent_matches() {
                     Status::Win(Color::White) => *white_wins.lock().unwrap() += 1,
                     Status::Win(Color::Black) => *black_wins.lock().unwrap() += 1,
                     Status::Draw => *draws.lock().unwrap() += 1,
-                    _ => unreachable!()
+                    _ => unreachable!(),
                 }
-                println!("{}: White wins: {}, Black wins: {}, Draws: {}", t,
-                    white_wins.lock().unwrap(), black_wins.lock().unwrap(),
-                    draws.lock().unwrap())
+                println!(
+                    "{}: White wins: {}, Black wins: {}, Draws: {}",
+                    t,
+                    white_wins.lock().unwrap(),
+                    black_wins.lock().unwrap(),
+                    draws.lock().unwrap()
+                )
             }
         }));
     }

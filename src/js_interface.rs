@@ -1,8 +1,11 @@
-
-use wasm_bindgen::prelude::*;
-use crate::{my_board::{MyBoard, Status}, engine::Engine};
-use chess::{ChessMove, Color, ALL_PIECES, Square};
+use chess::{ChessMove, Color, Square, ALL_PIECES};
 use js_sys::{Array, JsString};
+use wasm_bindgen::prelude::*;
+
+use crate::{
+    engine::Engine,
+    my_board::{MyBoard, Status},
+};
 
 #[wasm_bindgen]
 pub struct JSInterface {
@@ -13,31 +16,36 @@ pub struct JSInterface {
 
 #[wasm_bindgen]
 impl JSInterface {
-
     pub fn js_initial_interface(white_starts: bool) -> Self {
         let weights = crate::engine::feature_eval::Weights {
-            pieces: [[1.0, 3.0, 3.0, 5.0, 9.0, 0.0], [-1.0, -3.0, -3.0, -5.0, -9.0, 0.0]],
+            pieces: [[1.0, 3.0, 3.0, 5.0, 9.0, 0.0], [
+                -1.0, -3.0, -3.0, -5.0, -9.0, 0.0,
+            ]],
             king_danger: [-0.5, 0.5],
             pawn_advancement: [0.5, -0.5],
             side_to_move: 3.0,
         };
         crate::utils::set_panic_hook();
         JSInterface {
-            board: MyBoard::initial_board(
-                if white_starts { Color::White } else { Color::Black }
-            ),
-            engine_black: Box::new(
-                crate::engine::alphabeta::AlphaBeta::new(
-                    crate::engine::feature_eval::FeatureEval::new(weights, 22.0),
-                    6, true, true, 10
-                )
-            ),
-            engine_white: Box::new(
-                crate::engine::alphabeta::AlphaBeta::new(
-                    crate::engine::proportion_count::ProportionCount::default(),
-                    4, false, false, 10
-                )
-            )
+            board: MyBoard::initial_board(if white_starts {
+                Color::White
+            } else {
+                Color::Black
+            }),
+            engine_black: Box::new(crate::engine::alphabeta::AlphaBeta::new(
+                crate::engine::feature_eval::FeatureEval::new(weights, 22.0),
+                6,
+                true,
+                true,
+                10,
+            )),
+            engine_white: Box::new(crate::engine::alphabeta::AlphaBeta::new(
+                crate::engine::proportion_count::ProportionCount::default(),
+                4,
+                false,
+                false,
+                10,
+            )),
         }
     }
 
@@ -45,7 +53,7 @@ impl JSInterface {
         let square = make_square(file, rank);
         match self.board[square] {
             Some((p, c)) => Some(p.to_string(c).into()),
-            _ => None
+            _ => None,
         }
     }
 
@@ -54,7 +62,7 @@ impl JSInterface {
         match self.board[square] {
             Some((_, Color::White)) => "white".into(),
             Some((_, Color::Black)) => "black".into(),
-            _ => "empty".into()
+            _ => "empty".into(),
         }
     }
 
@@ -72,8 +80,8 @@ impl JSInterface {
     /// - `Some(true)` if the move is legal and has a promotion
     /// - `Some(false)` if the move is legal and does not have a promotion
     /// - `None` if the move is illegal
-    pub fn js_check_move(&self,
-        from_file: usize, from_rank: usize, to_file: usize, to_rank: usize
+    pub fn js_check_move(
+        &self, from_file: usize, from_rank: usize, to_file: usize, to_rank: usize,
     ) -> Option<bool> {
         let from = make_square(from_file, from_rank);
         let to = make_square(to_file, to_rank);
@@ -88,9 +96,9 @@ impl JSInterface {
         }
     }
 
-    pub fn js_apply_move(&mut self,
-        from_file: usize, from_rank: usize, to_file: usize, to_rank: usize,
-        promotion: Option<usize>
+    pub fn js_apply_move(
+        &mut self, from_file: usize, from_rank: usize, to_file: usize, to_rank: usize,
+        promotion: Option<usize>,
     ) {
         let from = make_square(from_file, from_rank);
         let to = make_square(to_file, to_rank);
@@ -98,26 +106,23 @@ impl JSInterface {
         self.board.apply_move(m);
     }
 
-    pub fn js_apply_bonus(&mut self, is_bonus: bool) {
-        self.board.apply_bonus(is_bonus);
-    }
+    pub fn js_apply_bonus(&mut self, is_bonus: bool) { self.board.apply_bonus(is_bonus); }
 
     pub fn js_get_side_to_move(&self) -> JsString {
-        if self.board.get_side_to_move().to_index() == 0 { "white".into() }
-        else { "black".into() }
+        if self.board.get_side_to_move().to_index() == 0 {
+            "white".into()
+        } else {
+            "black".into()
+        }
     }
 
-    pub fn js_status(&self) -> JsString {
-        self.board.get_status().into()
-    }
+    pub fn js_status(&self) -> JsString { self.board.get_status().into() }
 
     pub fn js_get_engine_move(&mut self) -> Array {
-        move_to_array(
-            match self.board.get_side_to_move() {
-                Color::White => self.engine_white.get_move(&self.board),
-                Color::Black => self.engine_black.get_move(&self.board)
-            }
-        )
+        move_to_array(match self.board.get_side_to_move() {
+            Color::White => self.engine_white.get_move(&self.board),
+            Color::Black => self.engine_black.get_move(&self.board),
+        })
     }
 }
 
@@ -127,7 +132,7 @@ impl From<Status> for JsString {
             Status::InProgress => "in progress".into(),
             Status::Win(Color::White) => "white".into(),
             Status::Win(Color::Black) => "black".into(),
-            Status::Draw => "draw".into()
+            Status::Draw => "draw".into(),
         }
     }
 }
@@ -143,8 +148,5 @@ fn move_to_array(m: ChessMove) -> Array {
 }
 
 fn make_square(file: usize, rank: usize) -> Square {
-    Square::make_square(
-        chess::Rank::from_index(rank),
-        chess::File::from_index(file)
-    )
+    Square::make_square(chess::Rank::from_index(rank), chess::File::from_index(file))
 }

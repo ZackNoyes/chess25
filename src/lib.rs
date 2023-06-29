@@ -1,10 +1,10 @@
-use fixed::{FixedU32, types::extra::U31};
+use fixed::{types::extra::U31, FixedU32};
 
-mod utils;
+mod engine;
+mod js_interface;
 mod logger;
 mod my_board;
-mod js_interface;
-mod engine;
+mod utils;
 mod zobrist;
 
 pub type Score = FixedU32<U31>;
@@ -13,14 +13,13 @@ pub(crate) const ZERO: Score = Score::ZERO;
 pub(crate) const DELTA: Score = Score::DELTA;
 
 pub use engine::{
-    Engine,
-    StaticEvaluator,
+    alphabeta::AlphaBeta,
+    feature_eval::{FeatureEval, Features, Weights},
     proportion_count::ProportionCount,
-    alphabeta::AlphaBeta
+    Engine, StaticEvaluator,
 };
-pub use my_board::{MyBoard, Status};
 pub use logger::Logger;
-pub use engine::feature_eval::{Features, FeatureEval, Weights};
+pub use my_board::{MyBoard, Status};
 
 // When the `wee_alloc` feature is enabled, use `wee_alloc` as the global
 // allocator.
@@ -29,11 +28,7 @@ pub use engine::feature_eval::{Features, FeatureEval, Weights};
 static ALLOC: wee_alloc::WeeAlloc = wee_alloc::WeeAlloc::INIT;
 
 #[inline]
-pub fn bonus_chance() -> Score {
-    ONE / 4
-}
+pub fn bonus_chance() -> Score { ONE / 4 }
 
 #[inline]
-pub fn no_bonus_chance() -> Score {
-    ONE - bonus_chance()
-}
+pub fn no_bonus_chance() -> Score { ONE - bonus_chance() }

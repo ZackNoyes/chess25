@@ -1,4 +1,3 @@
-
 mod score_info;
 use score_info::ScoreInfo;
 
@@ -13,16 +12,11 @@ use branch_info::BranchInfo;
 
 #[cfg(test)] mod tests;
 
-use chess::{Color::*, ChessMove};
+use chess::{ChessMove, Color::*};
 use either::Either::{Left, Right};
 
-use crate::logger::Logger;
-use crate::{Score, ONE};
-use crate::my_board::MyBoard;
-
-use super::Engine;
-use super::evaluator::StaticEvaluator;
-use super::position_table::PositionTable;
+use super::{evaluator::StaticEvaluator, position_table::PositionTable, Engine};
+use crate::{logger::Logger, my_board::MyBoard, Score, ONE};
 
 pub struct AlphaBeta {
     static_evaluator: Box<dyn StaticEvaluator>,
@@ -39,14 +33,16 @@ pub struct AlphaBeta {
 }
 
 impl AlphaBeta {
-
     /// Using a larger log level may have performance costs
-    pub fn new(static_evaluator: impl StaticEvaluator + 'static,
-        lookahead: u8, is_pessimistic: bool, is_focussed: bool, log_level: u8
+    pub fn new(
+        static_evaluator: impl StaticEvaluator + 'static, lookahead: u8, is_pessimistic: bool,
+        is_focussed: bool, log_level: u8,
     ) -> Self {
         assert!(lookahead > 0, "lookahead must be positive");
-        assert!(!is_focussed || lookahead > 1,
-            "lookahead must be greater than 1 if focussed");
+        assert!(
+            !is_focussed || lookahead > 1,
+            "lookahead must be greater than 1 if focussed"
+        );
         let logger = Logger::new(log_level);
         AlphaBeta {
             static_evaluator: Box::new(static_evaluator),
@@ -63,13 +59,13 @@ impl AlphaBeta {
     }
 
     /// Gets the best move for the current player, along with its score.
-    /// 
+    ///
     /// This function takes in `bounds` to search for the move within.
     /// If the search determines that the evaluation is outside the bounds,
     /// then a `Pruned` result is returned. Otherwise, a `Result` is
     /// returned. In this case, the result's `score` is guaranteed to be within
     /// the bounds.
-    /// 
+    ///
     /// - If `depth` is 0, then the `Move` will not be contained in the result
     /// - If `depth` is `self.lookahead`, then the `Move` will be contained in
     ///     the result
@@ -86,9 +82,11 @@ impl AlphaBeta {
 
         // Check if there is an existing entry in the position table
         if let Some(score_info) = self.position_table.get(board, depth) {
-            if bounds.info_too_low(score_info) { return Low; }
-            else if bounds.info_too_high(score_info) { return High; }
-            else if let Some(score) = score_info.actual_score() {
+            if bounds.info_too_low(score_info) {
+                return Low;
+            } else if bounds.info_too_high(score_info) {
+                return High;
+            } else if let Some(score) = score_info.actual_score() {
                 if depth != self.lookahead {
                     // Unfortunately we can't use the table for the root,
                     // since it doesn't contain the move required
@@ -107,25 +105,26 @@ impl AlphaBeta {
             let evaluation = self.static_evaluator.evaluate(board);
 
             // TODO: Take advantage of the colour redundancy
-            self.position_table.insert(
-                board, depth, ScoreInfo::from_score(evaluation));
+            self.position_table
+                .insert(board, depth, ScoreInfo::from_score(evaluation));
 
-            return
-                if bounds.score_too_low(evaluation) { Low }
-                else if bounds.score_too_high(evaluation) { High }
-                else { Result(evaluation, None) }
+            return if bounds.score_too_low(evaluation) {
+                Low
+            } else if bounds.score_too_high(evaluation) {
+                High
+            } else {
+                Result(evaluation, None)
+            };
         }
 
         let is_maxing = board.get_side_to_move() == White;
         let mut best_result = None;
 
         let moves = if depth > 1 {
-
             let mut moves: Vec<_> = board.all_moves().collect();
             // sort_by_cached_key was faster than sort_unstable_by_key
             // after a few tests, so we use that
             moves.sort_by_cached_key(|mv| {
-
                 self.iter_deep_lookups += 1;
 
                 let (_, nb_board) = self.next_boards(board, *mv, false);
@@ -137,17 +136,24 @@ impl AlphaBeta {
                         key = Some(score);
                     }
                 }
-                
+
                 let key = key.unwrap_or_else(|| {
                     self.iter_deep_failures += 1;
                     let eval = self.static_evaluator.evaluate(&nb_board);
                     // TODO: Take advantage of the colour redundancy
-                    self.position_table.insert(&nb_board, finish_depth,
-                        ScoreInfo::from_score(eval));
+                    self.position_table.insert(
+                        &nb_board,
+                        finish_depth,
+                        ScoreInfo::from_score(eval),
+                    );
                     eval
                 });
 
-                if is_maxing { ONE - key } else { key }
+                if is_maxing {
+                    ONE - key
+                } else {
+                    key
+                }
             });
 
             Left(moves.into_iter())
@@ -156,7 +162,6 @@ impl AlphaBeta {
         };
 
         for mv in moves {
-            
             let (b_board, nb_board) = self.next_boards(board, mv, depth > finish_depth + 1);
 
             // Define the bonus and non-bonus chances in an adjusted way.
@@ -168,8 +173,8 @@ impl AlphaBeta {
 
             if self.is_pessimistic {
                 let adjustment = Score::from_num(
-                    ((b_board.get_black_pieces() | b_board.get_white_pieces())
-                    .count()) as f64 / 200.0
+                    ((b_board.get_black_pieces() | b_board.get_white_pieces()).count()) as f64
+                        / 200.0,
                 );
                 if is_maxing {
                     b_chance += adjustment;
@@ -183,34 +188,40 @@ impl AlphaBeta {
             // Calculate the implied bounds on the no-bonus branch, assuming
             // a worst-case scenario for the bonus branch at both sides of the
             // bound.
-            let nb_bounds = bounds
-                .min_decreased_by(b_chance)
-                .expanded(nb_chance);
-            
+            let nb_bounds = bounds.min_decreased_by(b_chance).expanded(nb_chance);
+
             let nb_result = self.get_scored_best_move(&nb_board, nb_bounds, depth - 1);
-            
+
             // Determine a probability weighted score for this move, or a prune
             let result = if let Result(nb_score, _) = nb_result {
                 let b_bounds = bounds
                     .both_decreased_by(nb_score * nb_chance)
                     .expanded(b_chance);
                 let b_result = self.get_scored_best_move(
-                    &b_board, b_bounds, depth - if self.is_focussed { 2 } else { 1 }
+                    &b_board,
+                    b_bounds,
+                    depth - if self.is_focussed { 2 } else { 1 },
                 );
                 if let Result(b_score, _) = b_result {
-                    let score =
-                        b_score * b_chance
-                        + nb_score * nb_chance;
+                    let score = b_score * b_chance + nb_score * nb_chance;
                     if !bounds.contains(score) {
                         self.rounding_errors += 1;
-                        if Some(score) == bounds.min { Low }
-                        else if Some(score) == bounds.max { High }
-                        else { panic!("score is distinctly out of bounds"); }
+                        if Some(score) == bounds.min {
+                            Low
+                        } else if Some(score) == bounds.max {
+                            High
+                        } else {
+                            panic!("score is distinctly out of bounds");
+                        }
                     } else {
                         Result(score, None)
                     }
-                } else { b_result }
-            } else { nb_result };
+                } else {
+                    b_result
+                }
+            } else {
+                nb_result
+            };
 
             // Set `score` to be the actual score, unless it was a prune, in
             // which case we either continue or return, depending on the
@@ -225,37 +236,45 @@ impl AlphaBeta {
                 }
             };
 
-            assert!(bounds.contains(score), "bounds should contain score \
-                because of the bounds on nb_score and b_score");
+            assert!(
+                bounds.contains(score),
+                "bounds should contain score \
+                because of the bounds on nb_score and b_score"
+            );
 
             // Update the bounds with this new result
-            if is_maxing { bounds.update_min(score); }
-            else { bounds.update_max(score); }
+            if is_maxing {
+                bounds.update_min(score);
+            } else {
+                bounds.update_max(score);
+            }
 
             // Update the best result found so far
             best_result = match best_result {
                 None => Some((score, mv)),
-                Some((best_score, _)) if
-                    (is_maxing && score > best_score)
-                    || (!is_maxing && score < best_score)
-                => {
+                Some((best_score, _))
+                    if (is_maxing && score > best_score) || (!is_maxing && score < best_score) =>
+                {
                     Some((score, mv))
                 }
                 _ => best_result,
             };
-
         }
 
         let res = if let Some((score, mv)) = best_result {
             Result(score, Some(mv))
-        } else if is_maxing { Low } else { High };
+        } else if is_maxing {
+            Low
+        } else {
+            High
+        };
 
         self.update_table_for_result(board, depth, bounds, &res);
         res
     }
 
-    fn update_table_for_result(&mut self,
-        board: &MyBoard, depth: u8, bounds: Bounds, result: &SearchResult
+    fn update_table_for_result(
+        &mut self, board: &MyBoard, depth: u8, bounds: Bounds, result: &SearchResult,
     ) {
         // We don't do anything fancy by merging the new result with the old
         // since bugs can arise from that due to the fact that the new result
@@ -263,12 +282,16 @@ impl AlphaBeta {
         // This could lead to incompatible ranges.
         let new = match result {
             Result(score, _) => ScoreInfo::from_score(*score),
-            Low => ScoreInfo::from_max_score(bounds.min.expect("\
+            Low => ScoreInfo::from_max_score(bounds.min.expect(
+                "\
                 shouldn't return Low if there is no minimum bound\
-            ")),
-            High => ScoreInfo::from_min_score(bounds.max.expect("\
+            ",
+            )),
+            High => ScoreInfo::from_min_score(bounds.max.expect(
+                "\
                 shouldn't return High if there is no maximum bound\
-            ")),
+            ",
+            )),
         };
         self.position_table.insert(board, depth, new);
     }
@@ -283,18 +306,16 @@ impl AlphaBeta {
         {
             line.push(&format!("score: {}", score).into());
         } else {
-
             let Result(score, Some(mv)) =
                 self.get_scored_best_move(board, Bounds::widest(), self.lookahead)
                 else { panic!(); };
-            
+
             line.push(&format!("score: {}", score).into());
-            
+
             self.lookahead -= 1; // we adjust this as we recurse
 
-            line.push(&format!("side to move: {:?}",
-                board.get_side_to_move()).into());
-            
+            line.push(&format!("side to move: {:?}", board.get_side_to_move()).into());
+
             line.push(&format!("best move: {} to {}", mv.get_source(), mv.get_dest()).into());
 
             let (b_board, nb_board) = self.next_boards(board, mv, true);
@@ -306,11 +327,9 @@ impl AlphaBeta {
 
         line
     }
-
 }
 
 impl Engine for AlphaBeta {
-
     fn default(static_evaluator: impl StaticEvaluator + 'static) -> Self {
         AlphaBeta::new(static_evaluator, 4, false, false, 10)
     }
@@ -326,68 +345,71 @@ impl Engine for AlphaBeta {
         self.logger.time_start(2, "move calculation");
 
         for depth in 2..self.lookahead {
-
             self.logger.time_start(7, &format!("depth {}", depth));
 
             self.iter_deep_lookups = 0;
             self.iter_deep_failures = 0;
 
-            let s = match
-                self.get_scored_best_move(board, Bounds::widest(), depth)
-            {
+            let s = match self.get_scored_best_move(board, Bounds::widest(), depth) {
                 Result(s, _) => s,
                 _ => panic!("pruning should not happen with the widest bounds"),
             };
-            
-            self.logger.log(7, &format!("\
+
+            self.logger.log(
+                7,
+                &format!(
+                    "\
                 depth {}: score {}\n\t{}/{} ({}%) lookup failures",
-                depth, s, self.iter_deep_failures, self.iter_deep_lookups,
-                (self.iter_deep_failures * 100) / (self.iter_deep_lookups + 1)
-            ));
+                    depth,
+                    s,
+                    self.iter_deep_failures,
+                    self.iter_deep_lookups,
+                    (self.iter_deep_failures * 100) / (self.iter_deep_lookups + 1)
+                ),
+            );
 
             self.logger.time_end(7, &format!("depth {}", depth));
-
         }
 
         self.position_table.reset_debug_info();
         self.rounding_errors = 0;
         self.branch_info.reset_statistics();
 
-        
-        self.logger.time_start(7, &format!("depth {} (final)", self.lookahead));
-        
-        let (s, mv) = match
-            self.get_scored_best_move(board, Bounds::widest(), self.lookahead)
-        {
+        self.logger
+            .time_start(7, &format!("depth {} (final)", self.lookahead));
+
+        let (s, mv) = match self.get_scored_best_move(board, Bounds::widest(), self.lookahead) {
             Result(s, mv) => (s, mv.expect("move should be returned at top level")),
             _ => panic!("pruning should not happen with the widest bounds"),
         };
-        
-        
-        self.logger.time_end(7, &format!("depth {} (final)", self.lookahead));
 
-        self.logger.log(2, &format!("{:?} to move evaluation: {}",
-            board.get_side_to_move(), s));
+        self.logger
+            .time_end(7, &format!("depth {} (final)", self.lookahead));
+
+        self.logger.log(
+            2,
+            &format!("{:?} to move evaluation: {}", board.get_side_to_move(), s),
+        );
 
         self.logger.time_end(2, "move calculation");
 
         self.log_info();
 
         self.logger.time_start(8, "reasoning generation");
-        self.logger.clone().log_lazy_arr(8, || { self.get_line(board) });
+        self.logger.clone().log_lazy_arr(8, || self.get_line(board));
         self.logger.time_end(8, "reasoning generation");
-        
+
         mv
     }
 
     fn log_info(&self) {
-        self.logger.log_lazy(5, || { self.position_table.info() });
-        self.logger.log(7, &format!("detected {} rounding errors", self.rounding_errors));
-        self.logger.log_lazy(5, || { self.branch_info.statistics() });
+        self.logger.log_lazy(5, || self.position_table.info());
+        self.logger.log(
+            7,
+            &format!("detected {} rounding errors", self.rounding_errors),
+        );
+        self.logger.log_lazy(5, || self.branch_info.statistics());
     }
 
-    fn get_logger(&self) -> &Logger {
-        &self.logger
-    }
-
+    fn get_logger(&self) -> &Logger { &self.logger }
 }

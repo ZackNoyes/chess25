@@ -1,11 +1,7 @@
-
 use chess::Color;
 
-use crate::Score;
-use crate::logger::Logger;
-use crate::my_board::MyBoard;
-use super::position_table::PositionTable;
-use super::{Engine, StaticEvaluator};
+use super::{position_table::PositionTable, Engine, StaticEvaluator};
+use crate::{logger::Logger, my_board::MyBoard, Score};
 
 pub struct Minimax {
     static_evaluator: Box<dyn StaticEvaluator>,
@@ -15,7 +11,6 @@ pub struct Minimax {
 }
 
 impl Minimax {
-
     pub fn new(static_evaluator: impl StaticEvaluator + 'static, lookahead: u8) -> Self {
         let logger = Logger::new(0);
         Minimax {
@@ -27,26 +22,25 @@ impl Minimax {
     }
 
     fn evaluate_with_cutoff(&mut self, board: &MyBoard, cutoff: u8) -> Score {
-
         if let Some(score) = self.position_table.get(board, cutoff) {
             return score;
         }
 
         if cutoff == 0 || !board.get_status().is_in_progress() {
             let evaluation = self.static_evaluator.evaluate(board);
-            self.position_table.insert_both_colors(board, cutoff, evaluation);
+            self.position_table
+                .insert_both_colors(board, cutoff, evaluation);
             return evaluation;
         }
 
         let scores = board.all_moves().map(|mv| {
-
             // At the last layer, we skip the draw check, since it's really
             // rare and also the most expensive part
             let (bonus_board, no_bonus_board) = self.next_boards(board, mv, cutoff != 1);
-            
+
             // Assumes the chance of bonus and chance of no bonus
             self.evaluate_with_cutoff(&bonus_board, cutoff - 1) * crate::bonus_chance()
-            + self.evaluate_with_cutoff(&no_bonus_board, cutoff - 1) * crate::no_bonus_chance()
+                + self.evaluate_with_cutoff(&no_bonus_board, cutoff - 1) * crate::no_bonus_chance()
         });
 
         let score = if board.get_side_to_move() == Color::White {
@@ -59,11 +53,9 @@ impl Minimax {
 
         score
     }
-
 }
 
 impl Engine for Minimax {
-
     fn default(static_evaluator: impl StaticEvaluator + 'static) -> Self {
         Minimax::new(static_evaluator, 4)
     }
@@ -72,8 +64,5 @@ impl Engine for Minimax {
         self.evaluate_with_cutoff(board, self.lookahead - 1)
     }
 
-    fn get_logger(&self) -> &Logger {
-        &self.logger
-    }
-
+    fn get_logger(&self) -> &Logger { &self.logger }
 }

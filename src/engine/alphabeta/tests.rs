@@ -1,22 +1,34 @@
 use chess::Color;
 
-use crate::{engine::{proportion_count, feature_eval}};
-
 use super::*;
+use crate::engine::{feature_eval, proportion_count};
 
 #[test]
 #[ignore]
 fn test_self_game() {
-
-    let mut white = AlphaBeta::new(proportion_count::ProportionCount::default(), 2, false, true, 10);
-    let mut black = AlphaBeta::new(proportion_count::ProportionCount::default(), 2, true, false, 10);
+    let mut white = AlphaBeta::new(
+        proportion_count::ProportionCount::default(),
+        2,
+        false,
+        true,
+        10,
+    );
+    let mut black = AlphaBeta::new(
+        proportion_count::ProportionCount::default(),
+        2,
+        true,
+        false,
+        10,
+    );
 
     let mut board = MyBoard::initial_board(Color::White);
 
     let mut moves = 0;
 
     loop {
-        if !board.get_status().is_in_progress() { break; }
+        if !board.get_status().is_in_progress() {
+            break;
+        }
 
         let mv = if board.get_side_to_move() == Color::White {
             white.get_move(&board)
@@ -31,30 +43,53 @@ fn test_self_game() {
         println!("{}", board);
 
         let weights = crate::engine::feature_eval::Weights {
-            pieces: [[1.0, 3.0, 3.0, 5.0, 9.0, 0.0], [-1.0, -3.0, -3.0, -5.0, -9.0, 0.0]],
+            pieces: [[1.0, 3.0, 3.0, 5.0, 9.0, 0.0], [
+                -1.0, -3.0, -3.0, -5.0, -9.0, 0.0,
+            ]],
             king_danger: [-0.5, 0.5],
             pawn_advancement: [1.0, -1.0],
             side_to_move: 3.0,
         };
         check_inversions(&board, || {
-            AlphaBeta::new(proportion_count::ProportionCount::default(), 3, false, false, 0)
+            AlphaBeta::new(
+                proportion_count::ProportionCount::default(),
+                3,
+                false,
+                false,
+                0,
+            )
         });
         check_inversions(&board, || {
-            AlphaBeta::new(proportion_count::ProportionCount::default(), 4, false, true, 0)
+            AlphaBeta::new(
+                proportion_count::ProportionCount::default(),
+                4,
+                false,
+                true,
+                0,
+            )
         });
         check_inversions(&board, || {
-            AlphaBeta::new(feature_eval::FeatureEval::new(weights, 20.0), 3, false, false, 0)
+            AlphaBeta::new(
+                feature_eval::FeatureEval::new(weights, 20.0),
+                3,
+                false,
+                false,
+                0,
+            )
         });
         check_inversions(&board, || {
-            AlphaBeta::new(feature_eval::FeatureEval::new(weights, 20.0), 4, false, true, 0)
+            AlphaBeta::new(
+                feature_eval::FeatureEval::new(weights, 20.0),
+                4,
+                false,
+                true,
+                0,
+            )
         });
-        
     }
-
 }
 
 fn check_inversions(board: &MyBoard, engine_creator: impl Fn() -> AlphaBeta) {
-
     // Board 0 is the normal board.
     // Board 1 should match 0.
     // Board 2 is the normal board with castling rights stripped.
@@ -70,19 +105,28 @@ fn check_inversions(board: &MyBoard, engine_creator: impl Fn() -> AlphaBeta) {
     boards[4].invert_files();
     boards[4].invert_ranks_and_colors();
 
-    let results = boards.iter().enumerate().map(|(i, b)| {
-        let mut engine = engine_creator();
-        let Result(sc1, _) = engine.get_scored_best_move(b, Bounds::widest(), 3)
+    let results = boards
+        .iter()
+        .enumerate()
+        .map(|(i, b)| {
+            let mut engine = engine_creator();
+            let Result(sc1, _) = engine.get_scored_best_move(b, Bounds::widest(), 3)
             else { panic!("widest bounds should return a result"); };
-        if i == 1 || i == 4 { ONE - sc1 } else { sc1 }
-    }).collect::<Vec<Score>>();
+            if i == 1 || i == 4 {
+                ONE - sc1
+            } else {
+                sc1
+            }
+        })
+        .collect::<Vec<Score>>();
 
     let error = Score::from_num(0.002);
 
     assert!(
         error + results[0] > results[1] && results[0] - error < results[1],
         "inversion 1 failed: {} != {}",
-        results[0], results[1]
+        results[0],
+        results[1]
     );
 
     let correct = results[2];
@@ -90,7 +134,9 @@ fn check_inversions(board: &MyBoard, engine_creator: impl Fn() -> AlphaBeta) {
         assert!(
             error + correct > inverted && correct - error < inverted,
             "inversion {} failed: {} != {}",
-            i + 2, correct, inverted
+            i + 2,
+            correct,
+            inverted
         );
     }
 }
