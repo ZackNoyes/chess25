@@ -1,25 +1,16 @@
 use chess::Color;
 
 use super::*;
-use crate::engine::{feature_eval, proportion_count};
+use crate::engine::{
+    feature_eval::{FeatureEval, Weights},
+    proportion_count::ProportionCount,
+};
 
 #[test]
 #[ignore]
 fn test_self_game() {
-    let mut white = AlphaBeta::new(
-        proportion_count::ProportionCount::default(),
-        2,
-        false,
-        true,
-        10,
-    );
-    let mut black = AlphaBeta::new(
-        proportion_count::ProportionCount::default(),
-        2,
-        true,
-        false,
-        10,
-    );
+    let mut white = AlphaBeta::new(ProportionCount::default(), 2, false, true, 10);
+    let mut black = AlphaBeta::new(ProportionCount::default(), 2, true, false, 10);
 
     let mut board = MyBoard::initial_board(Color::White);
 
@@ -42,7 +33,7 @@ fn test_self_game() {
         println!("--------------------");
         println!("{}", board);
 
-        let weights = crate::engine::feature_eval::Weights {
+        let weights = Weights {
             pieces: [[1.0, 3.0, 3.0, 5.0, 9.0, 0.0], [
                 -1.0, -3.0, -3.0, -5.0, -9.0, 0.0,
             ]],
@@ -51,40 +42,16 @@ fn test_self_game() {
             side_to_move: 3.0,
         };
         check_inversions(&board, || {
-            AlphaBeta::new(
-                proportion_count::ProportionCount::default(),
-                3,
-                false,
-                false,
-                0,
-            )
+            AlphaBeta::new(ProportionCount::default(), 3, false, false, 0)
         });
         check_inversions(&board, || {
-            AlphaBeta::new(
-                proportion_count::ProportionCount::default(),
-                4,
-                false,
-                true,
-                0,
-            )
+            AlphaBeta::new(ProportionCount::default(), 4, false, true, 0)
         });
         check_inversions(&board, || {
-            AlphaBeta::new(
-                feature_eval::FeatureEval::new(weights, 20.0),
-                3,
-                false,
-                false,
-                0,
-            )
+            AlphaBeta::new(FeatureEval::new(weights, 20.0), 3, false, false, 0)
         });
         check_inversions(&board, || {
-            AlphaBeta::new(
-                feature_eval::FeatureEval::new(weights, 20.0),
-                4,
-                false,
-                true,
-                0,
-            )
+            AlphaBeta::new(FeatureEval::new(weights, 20.0), 4, false, true, 0)
         });
     }
 }
