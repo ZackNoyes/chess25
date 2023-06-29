@@ -30,6 +30,7 @@ fixed = "1.23.1"
 ansi_term = "0.12.1"
 serde = { version = "1.0.164", features = ["derive"] }
 serde_json = "1.0.99"
+either = "1.8.1"
 
 [dev-dependencies]
 wasm-bindgen-test = "0.3.13"

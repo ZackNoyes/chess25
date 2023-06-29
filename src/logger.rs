@@ -8,7 +8,7 @@ use web_sys::console;
 #[derive(Clone)]
 pub struct Logger {
     /// 10 is everything and 0 is nothing
-    level: u8,
+    pub level: u8,
 
     #[cfg(not(target_arch = "wasm32"))]
     start_times: HashMap<String, Instant>

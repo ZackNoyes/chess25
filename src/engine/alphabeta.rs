@@ -14,6 +14,7 @@ use branch_info::BranchInfo;
 #[cfg(test)] mod tests;
 
 use chess::{Color::*, ChessMove};
+use either::Either::{Left, Right};
 
 use crate::logger::Logger;
 use crate::{Score, ONE};
@@ -39,6 +40,7 @@ pub struct AlphaBeta {
 
 impl AlphaBeta {
 
+    /// Using a larger log level may have performance costs
     pub fn new(static_evaluator: impl StaticEvaluator + 'static,
         lookahead: u8, is_pessimistic: bool, is_focussed: bool, log_level: u8
     ) -> Self {
@@ -117,11 +119,9 @@ impl AlphaBeta {
         let is_maxing = board.get_side_to_move() == White;
         let mut best_result = None;
 
-        let mut moves: Vec<_> = board.all_moves().collect(); // TODO: don't collect this iterator
-        let n_moves = moves.len() as u64;
+        let moves = if depth > 1 {
 
-        if depth > 1 {
-
+            let mut moves: Vec<_> = board.all_moves().collect();
             // sort_by_cached_key was faster than sort_unstable_by_key
             // after a few tests, so we use that
             moves.sort_by_cached_key(|mv| {
@@ -150,9 +150,12 @@ impl AlphaBeta {
                 if is_maxing { ONE - key } else { key }
             });
 
-        }
+            Left(moves.into_iter())
+        } else {
+            Right(board.all_moves())
+        };
 
-        for (i, mv) in moves.into_iter().enumerate() {
+        for mv in moves {
             
             let (b_board, nb_board) = self.next_boards(board, mv, depth > finish_depth + 1);
 
@@ -217,11 +220,7 @@ impl AlphaBeta {
                 else {
                     let res = if is_maxing { High } else { Low };
                     self.update_table_for_result(board, depth, bounds, &res);
-                    let num_pruned = n_moves - (i as u64) - 1;
-                    self.branch_info[depth as usize - 1].pruned += num_pruned;
-                    self.branch_info[
-                        depth as usize - if self.is_focussed { 2 } else { 1 }
-                    ].pruned += num_pruned;
+                    self.branch_info[depth as usize].prunes += 1;
                     return res;
                 }
             };

@@ -11,14 +11,14 @@ use std::ops::{Index, IndexMut};
 pub struct LayerInfo {
     pub not_pruned: u64,
     pub expanded: u64,
-    pub pruned: u64,
+    pub prunes: u64,
 }
 impl LayerInfo {
     pub fn new() -> Self {
         LayerInfo {
             not_pruned: 0,
             expanded: 0,
-            pruned: 0,
+            prunes: 0,
         }
     }
 }
@@ -49,35 +49,33 @@ impl BranchInfo {
         
         s.push_str("Pruning statistics:\n");
 
-        for depth in (0..self.0.len() as usize).rev() {
+        for depth in (0..self.0.len()).rev() {
         
-            let d = self.0.len() as usize - depth - 1;
+            let d = self.0.len() - depth - 1;
 
             let np = self.0[depth].not_pruned;
-            let p = self.0[depth].pruned;
+            let p = self.0[depth].prunes;
             let e = self.0[depth].expanded;
-            let t = np + p;
             let l = np - e;
 
-            if depth == self.0.len() as usize - 1 {
-                s.push_str(&format!("\tDepth {} (root) had {} nodes:\n",
-                    d, t));
+            if depth == self.0.len() - 1 {
+                s.push_str(&format!("\tDepth {} (root) considered {} nodes:\n", d, np));
             } else {
-                s.push_str(&format!("\tDepth {} had {} nodes:\n", d, t));
+                s.push_str(&format!("\tDepth {} considered {} nodes:\n", d, np));
             }
 
-            s.push_str(&format!("\t\t{} ({}%) were expanded\n",
-                e, (e * 100).checked_div(t).unwrap_or(0)));
             s.push_str(&format!("\t\t{} ({}%) were resolved with a table lookup\n",
-                l, (l * 100).checked_div(t).unwrap_or(0)));
-            s.push_str(&format!("\t\t{} ({}%) were pruned\n",
-                p, (p * 100).checked_div(t).unwrap_or(0)));
+                l, (l * 100).checked_div(np).unwrap_or(0)));
+            s.push_str(&format!("\t\t{} ({}%) were expanded\n",
+                e, (e * 100).checked_div(np).unwrap_or(0)));
+            s.push_str(&format!("\t\t\tof these, {} ({}%) caused a prune\n",
+                p, (p * 100).checked_div(e).unwrap_or(0)));
         }
         
         s
     }
 
     pub fn reset_statistics(&mut self) {
-        self.0 = vec![LayerInfo::new(); self.0.len() as usize];
+        self.0 = vec![LayerInfo::new(); self.0.len()];
     }
 }
