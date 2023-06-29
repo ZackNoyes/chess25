@@ -20,13 +20,12 @@ use crate::{logger::Logger, my_board::MyBoard, Score, ONE};
 
 pub struct AlphaBeta {
     static_evaluator: Box<dyn StaticEvaluator>,
-    lookahead: u8,
+    max_lookahead: u8,
     is_pessimistic: bool,
     is_focussed: bool,
     position_table: PositionTable<ScoreInfo>,
     logger: Logger,
     // Debug info
-    rounding_errors: u32,
     branch_info: BranchInfo,
     iter_deep_failures: u32,
     iter_deep_lookups: u32,
@@ -35,24 +34,23 @@ pub struct AlphaBeta {
 impl AlphaBeta {
     /// Using a larger log level may have performance costs
     pub fn new(
-        static_evaluator: impl StaticEvaluator + 'static, lookahead: u8, is_pessimistic: bool,
+        static_evaluator: impl StaticEvaluator + 'static, max_lookahead: u8, is_pessimistic: bool,
         is_focussed: bool, log_level: u8,
     ) -> Self {
-        assert!(lookahead > 0, "lookahead must be positive");
+        assert!(max_lookahead > 0, "lookahead must be positive");
         assert!(
-            !is_focussed || lookahead > 1,
+            !is_focussed || max_lookahead > 1,
             "lookahead must be greater than 1 if focussed"
         );
         let logger = Logger::new(log_level);
         AlphaBeta {
             static_evaluator: Box::new(static_evaluator),
-            lookahead,
+            max_lookahead,
             is_pessimistic,
             is_focussed,
             position_table: PositionTable::new(&logger),
             logger,
-            rounding_errors: 0,
-            branch_info: BranchInfo::new(lookahead),
+            branch_info: BranchInfo::new(max_lookahead),
             iter_deep_failures: 0,
             iter_deep_lookups: 0,
         }
@@ -66,14 +64,14 @@ impl AlphaBeta {
     /// returned. In this case, the result's `score` is guaranteed to be within
     /// the bounds.
     ///
-    /// - If `depth` is 0, then the `Move` will not be contained in the result
-    /// - If `depth` is `self.lookahead`, then the `Move` will be contained in
-    ///     the result
+    /// - If `get_move` is `true`, then the `Move` is guaranteed to be in the
+    ///   result.
     /// - Otherwise, the `Move` may or may not be contained in the result
-    ///     depending on whether the evaluation came from the position table
-    fn get_scored_best_move(&mut self, board: &MyBoard, bounds: Bounds, depth: u8) -> SearchResult {
+    ///   depending on whether the evaluation came from the position table
+    fn get_scored_best_move(
+        &mut self, board: &MyBoard, bounds: Bounds, depth: u8, get_move: bool,
+    ) -> SearchResult {
         assert!(bounds.valid());
-        assert!(depth <= self.lookahead);
         let mut bounds = bounds;
 
         let finish_depth = if self.is_focussed { 1 } else { 0 };
@@ -87,9 +85,7 @@ impl AlphaBeta {
             } else if bounds.info_too_high(score_info) {
                 return High;
             } else if let Some(score) = score_info.actual_score() {
-                if depth != self.lookahead {
-                    // Unfortunately we can't use the table for the root,
-                    // since it doesn't contain the move required
+                if !get_move {
                     return Result(score, None);
                 }
             }
@@ -113,6 +109,7 @@ impl AlphaBeta {
             } else if bounds.score_too_high(evaluation) {
                 High
             } else {
+                assert!(!get_move, "depth was too small to return a move");
                 Result(evaluation, None)
             };
         }
@@ -120,7 +117,7 @@ impl AlphaBeta {
         let is_maxing = board.get_side_to_move() == White;
         let mut best_result = None;
 
-        let moves = if depth > 1 {
+        let moves = if depth > finish_depth + 1 {
             let mut moves: Vec<_> = board.all_moves().collect();
             // sort_by_cached_key was faster than sort_unstable_by_key
             // after a few tests, so we use that
@@ -190,7 +187,7 @@ impl AlphaBeta {
             // bound.
             let nb_bounds = bounds.min_decreased_by(b_chance).expanded(nb_chance);
 
-            let nb_result = self.get_scored_best_move(&nb_board, nb_bounds, depth - 1);
+            let nb_result = self.get_scored_best_move(&nb_board, nb_bounds, depth - 1, false);
 
             // Determine a probability weighted score for this move, or a prune
             let result = if let Result(nb_score, _) = nb_result {
@@ -201,11 +198,11 @@ impl AlphaBeta {
                     &b_board,
                     b_bounds,
                     depth - if self.is_focussed { 2 } else { 1 },
+                    false,
                 );
                 if let Result(b_score, _) = b_result {
                     let score = b_score * b_chance + nb_score * nb_chance;
                     if !bounds.contains(score) {
-                        self.rounding_errors += 1;
                         if Some(score) == bounds.min {
                             Low
                         } else if Some(score) == bounds.max {
@@ -303,75 +300,70 @@ impl Engine for AlphaBeta {
     }
 
     fn evaluate(&mut self, board: &MyBoard) -> Score {
-        match self.get_scored_best_move(board, Bounds::widest(), self.lookahead) {
+        match self.get_scored_best_move(board, Bounds::widest(), self.max_lookahead, false) {
             Result(score, _) => score,
             _ => panic!("pruning should not happen with the widest bounds"),
         }
     }
 
     fn get_move(&mut self, board: &MyBoard) -> ChessMove {
-        self.logger.time_start(2, "move calculation");
+        self.logger
+            .log_lazy(5, || format!("Getting move for board:\n{}", board));
 
-        for depth in 2..self.lookahead {
-            self.logger.time_start(7, &format!("depth {}", depth));
+        self.logger.time_start(2, "full move calculation");
 
+        let mut best_move = None;
+
+        for depth in 2..=self.max_lookahead {
             self.iter_deep_lookups = 0;
             self.iter_deep_failures = 0;
+            self.position_table.reset_debug_info();
+            self.branch_info.reset_statistics();
 
-            let s = match self.get_scored_best_move(board, Bounds::widest(), depth) {
-                Result(s, _) => s,
-                _ => panic!("pruning should not happen with the widest bounds"),
+            self.logger.time_start(4, &format!("depth {}", depth));
+
+            let (s, mv) = match self.get_scored_best_move(board, Bounds::widest(), depth, true) {
+                Result(s, Some(mv)) => (s, mv),
+                _ => panic!("actual move should be returned"),
             };
 
-            self.logger.log(
-                7,
-                &format!(
-                    "depth {}: score {}\n\t{}/{} ({}%) lookup failures",
-                    depth,
-                    s,
-                    self.iter_deep_failures,
-                    self.iter_deep_lookups,
-                    (self.iter_deep_failures * 100) / (self.iter_deep_lookups + 1)
-                ),
-            );
+            self.logger
+                .log(4, &format!("depth {}: move {} with score {}", depth, mv, s));
 
-            self.logger.time_end(7, &format!("depth {}", depth));
+            best_move = Some((mv, s, depth));
+
+            self.logger.time_end(4, &format!("depth {}", depth));
+            self.log_info();
         }
 
-        self.position_table.reset_debug_info();
-        self.rounding_errors = 0;
-        self.branch_info.reset_statistics();
+        self.logger.time_end(2, "full move calculation");
 
-        self.logger
-            .time_start(7, &format!("depth {} (final)", self.lookahead));
-
-        let (s, mv) = match self.get_scored_best_move(board, Bounds::widest(), self.lookahead) {
-            Result(s, mv) => (s, mv.expect("move should be returned at top level")),
-            _ => panic!("pruning should not happen with the widest bounds"),
-        };
-
-        self.logger
-            .time_end(7, &format!("depth {} (final)", self.lookahead));
+        let best_move = best_move.expect("could not find a move in the time/lookahead given");
 
         self.logger.log(
             2,
-            &format!("{:?} to move evaluation: {}", board.get_side_to_move(), s),
+            &format!(
+                "Reached depth {} and found move {} with score {}",
+                best_move.2, best_move.0, best_move.1
+            ),
         );
 
-        self.logger.time_end(2, "move calculation");
-
-        self.log_info();
-
-        mv
+        best_move.0
     }
 
     fn log_info(&self) {
-        self.logger.log_lazy(5, || self.position_table.info());
-        self.logger.log(
-            7,
-            &format!("detected {} rounding errors", self.rounding_errors),
-        );
-        self.logger.log_lazy(5, || self.branch_info.statistics());
+        self.logger.log_lazy(6, || {
+            format!(
+                "{} lookups, {} ({}%) failures",
+                self.iter_deep_lookups,
+                self.iter_deep_failures,
+                (self.iter_deep_failures * 100)
+                    .checked_div(self.iter_deep_lookups)
+                    .unwrap_or(0),
+            )
+        });
+        self.logger.log_lazy(6, || self.position_table.info());
+        self.logger.log_lazy(6, || self.branch_info.statistics());
     }
 
     fn get_logger(&self) -> &Logger { &self.logger }

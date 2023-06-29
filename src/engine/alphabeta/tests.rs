@@ -77,7 +77,7 @@ fn check_inversions(board: &MyBoard, engine_creator: impl Fn() -> AlphaBeta) {
         .enumerate()
         .map(|(i, b)| {
             let mut engine = engine_creator();
-            let Result(sc1, _) = engine.get_scored_best_move(b, Bounds::widest(), 3)
+            let Result(sc1, _) = engine.get_scored_best_move(b, Bounds::widest(), 3, false)
             else { panic!("widest bounds should return a result"); };
             if i == 1 || i == 4 {
                 ONE - sc1

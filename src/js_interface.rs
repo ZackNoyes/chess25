@@ -37,14 +37,14 @@ impl JSInterface {
                 6,
                 true,
                 true,
-                10,
+                4,
             )),
             engine_white: Box::new(crate::engine::alphabeta::AlphaBeta::new(
                 crate::engine::proportion_count::ProportionCount::default(),
                 4,
                 false,
                 false,
-                10,
+                4,
             )),
         }
     }
