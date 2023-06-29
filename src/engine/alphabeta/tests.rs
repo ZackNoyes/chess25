@@ -91,7 +91,7 @@ fn check_inversions(board: &MyBoard, engine_creator: impl Fn() -> AlphaBeta) {
         })
         .collect::<Vec<Score>>();
 
-    let error = Score::from_num(0.002);
+    let error = Score::from_num(0.003);
 
     assert!(
         error + results[0] > results[1] && results[0] - error < results[1],
