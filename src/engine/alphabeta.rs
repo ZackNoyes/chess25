@@ -358,8 +358,7 @@ impl Engine for AlphaBeta {
             self.logger.log(
                 7,
                 &format!(
-                    "\
-                depth {}: score {}\n\t{}/{} ({}%) lookup failures",
+                    "depth {}: score {}\n\t{}/{} ({}%) lookup failures",
                     depth,
                     s,
                     self.iter_deep_failures,
