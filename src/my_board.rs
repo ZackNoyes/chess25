@@ -33,6 +33,7 @@ impl Status {
 }
 
 impl MyBoard {
+    // TODO: Remove `get_` as per Rust API guidelines
     pub fn get_side_to_move(&self) -> Color { self.side_to_move }
     pub fn get_castle_rights(&self, color: Color) -> CastleRights {
         match color {

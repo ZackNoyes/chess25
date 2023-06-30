@@ -7,3 +7,4 @@ wasm-pack.log
 www
 server
 /experiments/target
+/engine-app/target
