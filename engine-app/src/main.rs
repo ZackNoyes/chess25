@@ -50,7 +50,7 @@ enum ArgColor {
 }
 
 impl ArgColor {
-    fn to_color(&self) -> Color {
+    fn to_color(self) -> Color {
         match self {
             ArgColor::White => White,
             ArgColor::Black => Black,
