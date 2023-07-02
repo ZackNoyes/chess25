@@ -12,6 +12,8 @@ pub struct JSInterface {
     board: MyBoard,
     engine_black: Box<dyn Engine>,
     engine_white: Box<dyn Engine>,
+    board_history: Vec<MyBoard>,
+    move_history: Vec<ChessMove>,
 }
 
 #[wasm_bindgen]
@@ -48,6 +50,8 @@ impl JSInterface {
                 3,
                 1000,
             )),
+            board_history: Vec::new(),
+            move_history: Vec::new(),
         }
     }
 
@@ -57,6 +61,20 @@ impl JSInterface {
             Some((p, c)) => Some(p.to_string(c).into()),
             _ => None,
         }
+    }
+
+    pub fn js_history_piece(&self, file: usize, rank: usize, index: usize) -> Option<JsString> {
+        let square = make_square(file, rank);
+        match self.board_history[index][square] {
+            Some((p, c)) => Some(p.to_string(c).into()),
+            _ => None,
+        }
+    }
+
+    pub fn js_history_was_hot(&self, file: usize, rank: usize, index: usize) -> bool {
+        let square = make_square(file, rank);
+        self.move_history[index].get_source() == square
+            || self.move_history[index].get_dest() == square
     }
 
     pub fn js_piece_color(&self, file: usize, rank: usize) -> JsString {
@@ -106,6 +124,8 @@ impl JSInterface {
         let to = make_square(to_file, to_rank);
         let m = ChessMove::new(from, to, promotion.map(|i| ALL_PIECES[i]));
         self.board.apply_move(m);
+        self.board_history.push(self.board);
+        self.move_history.push(m);
     }
 
     pub fn js_apply_bonus(&mut self, is_bonus: bool) { self.board.apply_bonus(is_bonus); }
