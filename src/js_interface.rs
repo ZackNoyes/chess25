@@ -38,7 +38,7 @@ impl JSInterface {
                 crate::engine::feature_eval::FeatureEval::new(weights, 15.0),
                 10,
                 true,
-                true,
+                false,
                 3,
                 1000,
             )),
