@@ -4,7 +4,11 @@ Cargo.lock
 bin/
 pkg/
 wasm-pack.log
-www
-server
 /experiments/target
 /engine-app/target
+
+www/node_modules
+www/dist
+
+server/node_modules
+server/package-lock.json
