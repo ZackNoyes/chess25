@@ -1,9 +1,8 @@
 import { JSInterface } from "random-chess";
 
-// // Construct the universe, and get its width and height.
-// const universe = Universe.new();
-// const width = universe.width();
-// const height = universe.height();
+// TODO: Place a red marker on the king when it is in check
+// TODO: Implement drag and drop
+// TODO: Add animations when the pieces move
 
 // Colour constants
 const BLACK_SQUARE_COLOR = 'rgb(176, 124, 92)';
@@ -495,7 +494,9 @@ function initDailyGame() {
 window.initDailyGame = initDailyGame;
 
 function dispatchAIMove() {
-  setTimeout(() => { // TODO: properly run this in the background
+  // TODO: Run this in the background with a web worker
+  //   This requires some changes to how webpack, etc. is used
+  setTimeout(() => {
     let move = wasmInterface.js_get_engine_move();
     registerMove(move[0], move[1], move[2], move[3], move[4]);
   }, 1000);

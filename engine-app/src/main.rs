@@ -25,7 +25,7 @@ const INSTRUCTIONS: &str = "\
 #[derive(Parser, Debug)]
 #[command(
     name = "Random Chess - Engine",
-    about = "Simple binary for running my engine for my game Random Chess." // TODO: Instructions
+    about = "Simple binary for running my engine for my game Random Chess."
 )]
 struct Cli {
     /// The color the engine should play as

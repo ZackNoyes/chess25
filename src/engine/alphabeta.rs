@@ -107,7 +107,8 @@ impl AlphaBeta {
         if depth <= finish_depth || !board.get_status().is_in_progress() {
             let evaluation = self.static_evaluator.evaluate(board);
 
-            // TODO: Take advantage of the colour redundancy
+            // TODO: Take advantage of the fact that a lot of the computation when just the
+            //   side to move changes is redundant (see below)
             self.position_table
                 .insert(board, depth, ScoreInfo::from_score(evaluation));
 
@@ -144,7 +145,8 @@ impl AlphaBeta {
                 let key = key.unwrap_or_else(|| {
                     self.iter_deep_failures += 1;
                     let eval = self.static_evaluator.evaluate(&nb_board);
-                    // TODO: Take advantage of the colour redundancy
+                    // TODO: Take advantage of the fact that a lot of the computation when just the
+                    //   side to move changes is redundant (see above)
                     self.position_table.insert(
                         &nb_board,
                         finish_depth,
