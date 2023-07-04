@@ -1,14 +1,30 @@
 import express from 'express';
 const app = express();
 
+import https from 'https';
 import http from 'http';
-const server = http.createServer(app);
+
+const server = (process.env.NODE_ENV === 'production') ?
+  https.createServer({
+    key: fs.readFileSync("/etc/letsencrypt/live/zacknoyes.au/privkey.pem"),
+    cert: fs.readFileSync("/etc/letsencrypt/live/zacknoyes.au/fullchain.pem")
+  }, app)
+  : http.createServer(app);
+
+const port = process.env.NODE_ENV === 'production' ? 443 : 8080;
+server.listen(port, () => {
+  console.log('listening on *:' + port);
+});
+
+import fs from 'fs';
 
 import { Server } from "socket.io";
 const io = new Server(server);
 
 import { createClient } from 'redis';
-const redisClient = createClient();
+const redisClient = createClient({
+  url: 'redis://127.0.0.1:6380'
+});
 redisClient.on('error', err => console.log('Redis Client Error', err));
 await redisClient.connect();
 
@@ -23,10 +39,6 @@ const CHANCE_OF_BONUS = 0.25;
 
 app.use(express.static(path.join(__dirname,'dist')));
 app.use(express.json());
-
-server.listen(8080, () => {
-  console.log('listening on *:8080');
-});
 
 app.get('/api/newUser', async (req, res) => {
   console.log("NEW USER");
