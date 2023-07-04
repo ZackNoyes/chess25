@@ -1,0 +1,287 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Chess25</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet" integrity="sha384-9ndCyUaIbzAi2FUVXJi0CjmCapSmO7SnpJef0486qhLnuZ2cdeRhO02iuK6FUUVM" crossorigin="anonymous">
+    <link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>🎲</text></svg>">
+    <style>
+      #game-canvas {
+        width: min(95vw, 50vh, 600px);
+        height: min(95vw, 50vh, 600px);
+        margin: auto;
+      }
+      .tooltip-canvas {
+        width: min(50vw, 50vh, 180px);
+        height: min(50vw, 50vh, 180px);
+      }
+      .tooltip.in{opacity:1!important;}
+      .tooltip.show {
+        opacity: 1;
+      }
+      .top-sec h1 {
+        margin-bottom: 0px;
+      }
+      .row {
+        display:flex;
+        flex-direction:row;
+      }
+      .full {
+        flex:1;
+      }
+      html, body {
+        height: 100%;
+      }
+      .black-box {
+        display: inline-block;
+        width: 20px;
+        height: 20px;
+        background-color: black;
+        border-radius: 6px;
+        margin: 5px;
+        border: 1.5px solid grey;
+      }
+      .white-box {
+        display: inline-block;
+        width: 20px;
+        height: 20px;
+        background-color: white;
+        border-radius: 6px;
+        margin: 5px;
+        border: 2px solid rgb(97, 97, 97);
+      }
+    </style>
+  </head>
+  <body>
+
+    <div class="position-absolute top-0 start-0" id="alerts"></div>
+
+    <div class="container text-center py-3 py-sm-5">
+      <h1 class="display-4 mb-0">Chess25</h1>
+      <button class="btn btn-link rounded-pill px-3" type="button" data-bs-toggle="modal" data-bs-target="#rules">Show rules</button>
+    </div>
+
+    <div class="container text-center" id="startOptions">
+      <div class="row my-3">
+        <div class="col-6">
+          <button class="btn btn-primary full" type="button" data-bs-toggle="modal" data-bs-target="#hostModal" onclick="initiateHosting()">Host online game</button>
+        </div>
+        <div class="col-6">
+          <button class="btn btn-primary full" type="button" data-bs-toggle="modal" data-bs-target="#joinModal">Join online game</button>
+        </div>
+      </div>
+      <div class="row my-3">
+        <div class="col-6">
+          <button class="btn btn-primary full" type="button" onclick="initLocalGame()">Play locally</button>
+        </div>
+        <div class="col-6">
+          <button class="btn btn-primary full" type="button" onclick="initAIGame()">Play versus computer</button>
+        </div>
+      </div>
+      <div class="row my-3">
+        <div class="col-6">
+          <button class="btn btn-primary full" type="button" onclick="initAIvsAIGame()">Spectate AI Game</button>
+        </div>
+        <div class="col-6">
+          <button class="btn btn-primary full" type="button" onclick="initDailyGame()">Play daily game</button>
+        </div>
+      </div>
+    </div>
+    <div id="game" style="display: none;" class="text-center">
+      <div class="container d-flex flex-fill">
+        <canvas class="mx-auto my-auto" id="game-canvas"></canvas>
+      </div>
+      <div class="container text-center py-1 py-sm-3">
+        <p class="fs-3" id="status"></p>
+      </div>
+      <button type="button" class="btn btn-primary mx-auto" onclick="location.reload(true)" id="quitButton">Quit</button>
+    </div>
+    <noscript>This page contains webassembly and javascript content, please enable javascript in your browser.</noscript>
+    <script src="//cdnjs.cloudflare.com/ajax/libs/seedrandom/3.0.5/seedrandom.min.js"></script> 
+    <script src="./bootstrap.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js" integrity="sha384-geWF76RCwLtnZ8qwWowPQNguL3RmwHVBC9FhGdlKrxdiJJigb/j/68SIy3Te4Bkz" crossorigin="anonymous"></script>
+    <script src="/socket.io/socket.io.js"></script>
+    <script src="https://code.jquery.com/jquery-3.7.0.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.3.0/dist/chart.umd.js"></script>
+  </body>
+
+  <div class="modal fade" id="rules" tabindex="-1">
+    <div class="modal-dialog modal-dialog-scrollable modal-dialog-centered">
+      <div class="modal-content">
+        <div class="modal-header">
+          <h5 class="modal-title">Rules</h5>
+          <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+        </div>
+        <div class="modal-body">
+          <p>
+            Chess25 is a variant of the classic game of <a href="https://en.wikipedia.org/wiki/Chess">chess</a> with a dynamic twist.
+          </p>
+          <p>
+            Every time you make a move, <strong>there is a 25% chance that you get a bonus move and move again.</strong> This rule applies to the new turn as well, meaning you (or your opponent!) might get to move many times in a row.
+          </p>
+          <p>
+            There are also a few other rules that are different from normal chess:
+            <ul>
+              <li><strong>There is no check, checkmate, or stalemate.</strong> To win the game, you must simply capture the opponent's king like any other piece! If a player has no legal moves (this is <em>very, very</em> rare), then the game ends in a draw. The game also ends in a draw whenever 50 moves occur without any pawns moving or pieces being captured.</li>
+              <li>There is no <a href="https://en.m.wikipedia.org/wiki/En_passant">en-passant</a>.
+              <li><a href="https://en.wikipedia.org/wiki/Castling">Castling</a> works as normal, except that the check-based restrictions don't exist: the king and rook involved must have both not yet moved, and all the spaces in between them must be empty.</li>
+              <li>A (virtual) coin flip is used to decide which player goes first.</li>
+            </ul>
+          </p>
+          <h5 class="mt-4">About the daily game</h5>
+          <p>Every day, you can play a <em>daily game</em> against the computer, and compare your results with other people. To make it possible to compare results, the specific sequence of turns (which player goes first, and when the bonus moves happen) is decided randomly ahead of time and is the same for every player for that day, so don't spoil it!</p>
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="btn btn-primary mx-auto" data-bs-dismiss="modal">Let's play!</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="modal modal-sm fade" data-bs-backdrop="static" data-bs-keyboard="false" id="promotionSelect" tabindex="-1" aria-labelledby="exampleModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+      <div class="modal-content">
+        <div class="modal-body p-1">
+          <div class="container">
+            <div class="row my-3 text-center">
+              <div class="col-6">
+                <button type="button" id="promoOption1" class="btn btn-light full p-1 mx-auto" data-bs-dismiss="modal"><img width="90" class="img-fluid" src="images/cburnett/bN.svg" /></button>
+              </div>
+              <div class="col-6">
+                <button type="button" id="promoOption2" class="btn btn-light full p-1 mx-auto" data-bs-dismiss="modal"><img width="90" class="img-fluid" src="images/cburnett/bB.svg" /></button>
+              </div>
+            <div class="row my-3 text-center">
+            </div>
+              <div class="col-6">
+                <button type="button" id="promoOption3" class="btn btn-light full p-1 mx-auto" data-bs-dismiss="modal"><img width="90" class="img-fluid" src="images/cburnett/bR.svg" /></button>
+              </div>
+              <div class="col-6">
+                <button type="button" id="promoOption4" class="btn btn-light full p-1 mx-auto" data-bs-dismiss="modal"><img width="90" class="img-fluid" src="images/cburnett/bQ.svg" /></button>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="modal fade" id="hostModal" tabindex="-1" aria-labelledby="hostModalTitle" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+      <div class="modal-content">
+        <div class="modal-header">
+          <h5 class="modal-title" id="hostModalTitle">Host game</h5>
+        </div>
+        <div class="modal-body">
+          <p>Waiting for opponent to join with the game code below.</p>
+          <p class="text-center">Game code: <strong id="hostCode">loading</strong></p>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="modal fade" id="joinModal" tabindex="-1" aria-labelledby="joinModalTitle" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+      <div class="modal-content">
+        <div class="modal-header">
+          <h5 class="modal-title" id="joinModalTitle">Join game</h5>
+          <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+        </div>
+        <form action="javascript:void(0);" onsubmit="joinGame(document.getElementById('joinCode').value)">
+          <div class="modal-body">
+            <input type="number" class="form-control" id="joinCode" placeholder="Enter game code">
+          </div>
+          <div class="modal-footer">
+            <button type="button" class="btn btn-primary mx-auto" onclick="joinGame(document.getElementById('joinCode').value)">Join</button>
+          </div>
+        </form>
+      </div>
+    </div>
+  </div>
+
+
+  <div class="modal fade" id="joinFailedModal" tabindex="-1" aria-labelledby="joinFailedModalTitle" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+      <div class="modal-content">
+        <div class="modal-header">
+          <h5 class="modal-title" id="joinFailedModalTitle">Game not found</h5>
+          <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+        </div>
+        <div class="modal-body">
+          <p>The game you entered was not found. Please check the code and try again.</p>
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="btn btn-primary mx-auto" data-bs-dismiss="modal">Okay</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+
+  <div class="modal fade" id="opponentDisconnectedModal" tabindex="-1" aria-labelledby="opponentDisconnectedModalTitle" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+      <div class="modal-content">
+        <div class="modal-header">
+          <h5 class="modal-title" id="opponentDisconnectedModalTitle">Opponent disconnected</h5>
+          <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+        </div>
+        <div class="modal-body">
+          <p>Your opponent disconnected from the game.</p>
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="btn btn-primary mx-auto" onclick="location.reload(true)">Quit</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="modal fade" id="dailyStats" tabindex="-1">
+    <div class="modal-dialog modal-lg  modal-dialog-scrollable modal-dialog-centered">
+      <div class="modal-content">
+        <div class="modal-body text-center">
+          <h1 class="display-6" id="dailyModalTitle"></h1>
+          <p id="dailyResultText">loading...</p>
+          <hr/>
+          <p id="moveHistory"></p>
+          <hr/>
+          <h5>How other players did today</h5>
+          <div class="container">
+            <div class="row justify-content-center align-items-center">
+              <div class="col-sm-3 col-8 mb-3 mb-sm-0">
+                <canvas id="othersPercentageWin"></canvas>
+              </div>
+              <div class="col-sm-9">
+                <div class="row">
+                  <canvas class="mb-3" id="dateMovesWin"></canvas>
+                  <canvas id="dateMovesLoss"></canvas>
+                </div>
+            </div>
+          </div>
+          <h5 class="mt-4">Your all-time results</h5>
+          <div class="container">
+            <div class="row align-items-center justify-content-center">
+              <div class="col-sm-3 col-8 mb-3 mb-sm-0">
+                <canvas id="userPercentageWin"></canvas>
+              </div>
+              <div class="col-sm-9">
+                <div class="row">
+                  <canvas class="mb-3" id="userMovesWin"></canvas>
+                  <canvas id="userMovesLoss"></canvas>
+                </div>
+            </div>
+          </div>
+          <h5 class="mt-4">About the daily game</h5>
+          <p>Every day, you can play a <em>daily game</em> against the computer, and compare your results with other people. To make it possible to compare results, the specific sequence of turns (which player goes first, and when the bonus moves happen) is decided randomly ahead of time and is the same for every player for that day, so don't spoil it!</p>
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="btn btn-primary mx-auto" data-bs-dismiss="modal">Close</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="alert alert-dismissible fade show m-3" role="alert" id="alert" style="display: none;">
+    <strong>Holy guacamole!</strong> You should check in on some of those fields below.
+  </div>
+
+</html>
