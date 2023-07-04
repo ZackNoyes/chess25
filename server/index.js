@@ -11,10 +11,26 @@ const server = (process.env.NODE_ENV === 'production') ?
   }, app)
   : http.createServer(app);
 
-const port = process.env.NODE_ENV === 'production' ? 443 : 8080;
-server.listen(port, () => {
-  console.log('listening on *:' + port);
-});
+if (process.env.NODE_ENV === 'production') {
+  server.listen(443, () => {
+    console.log('listening on *:443');
+  });
+  const redirectApp = express();
+  const redirectServer = http.createServer(redirectApp);
+  redirectApp.use(function(req, res, next) {
+    if (process.env.NODE_ENV == 'production' && !req.secure) {
+      return res.redirect('https://' + req.headers.host + req.url);
+    }
+    next();
+  });
+  redirectServer.listen(80, () => {
+    console.log('listening on *:80');
+  });
+} else {
+  server.listen(8080, () => {
+    console.log('listening on *:8080');
+  });
+}
 
 import fs from 'fs';
 

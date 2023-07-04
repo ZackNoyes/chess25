@@ -13,6 +13,7 @@
   },
   "scripts": {
     "start": "node index.js",
+    "build": "cd .. && wasm-pack build && cd www && npm run build && cd ..",
     "all": "cd .. && wasm-pack build && cd www && npm run build && cd ../server && node index.js",
     "debug": "cd .. && wasm-pack build --debug && cd www && npm run build && cd ../server && node index.js"
   }
