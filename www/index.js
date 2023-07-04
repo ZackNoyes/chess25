@@ -343,6 +343,10 @@ socket.on("hosted", (id) => {
   document.getElementById("hostCode").innerHTML = id;
 });
 
+socket.on("hostFailed", (id) => {
+  document.getElementById("hostCode").innerHTML = "Cannot host game. There are too many users online.";
+});
+
 socket.on("opponentJoined", (iStart) => {
   switchToGameUI();
   wasmInterface = JSInterface.js_initial_interface(iStart);

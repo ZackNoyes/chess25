@@ -35,6 +35,8 @@ const __dirname = path.dirname(__filename);
 
 import crypto from 'crypto';
 
+import 'log-timestamp';
+
 const CHANCE_OF_BONUS = 0.25;
 
 app.use(express.static(path.join(__dirname,'dist')));
@@ -151,11 +153,19 @@ io.on('connection', (socket) => {
   
   socket.on('host', () => {
     console.log("HOST " + socket.id);
+    var tries = 0;
     while (true) {
       var code = Math.floor(Math.random() * 900 + 100);
       if (games[code] == undefined) {
         games[code] = { host: socket.id, guest: undefined };
+        console.log("HOSTED " + socket.id + " " + code);
         socket.emit('hosted', code);
+        break;
+      }
+      tries++;
+      if (tries > 10) {
+        console.log("HOST FAILED " + socket.id);
+        socket.emit('hostFailed');
         break;
       }
     }
