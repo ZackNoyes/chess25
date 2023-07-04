@@ -57,36 +57,21 @@
 
     <div class="position-absolute top-0 start-0" id="alerts"></div>
 
-    <div class="container text-center py-3 py-sm-5">
+    <div class="container text-center pt-3 pt-sm-5 pb-3 pb-sm-4">
       <h1 class="display-4 mb-0">Chess25</h1>
       <button class="btn btn-link rounded-pill px-3" type="button" data-bs-toggle="modal" data-bs-target="#rules">Show rules</button>
     </div>
 
     <div class="container text-center" id="startOptions">
-      <div class="row my-3">
+      <div class="row mb-5">
+        <div class="col-3"></div>
         <div class="col-6">
-          <button class="btn btn-primary full" type="button" data-bs-toggle="modal" data-bs-target="#hostModal" onclick="initiateHosting()">Host online game</button>
-        </div>
-        <div class="col-6">
-          <button class="btn btn-primary full" type="button" data-bs-toggle="modal" data-bs-target="#joinModal">Join online game</button>
+          <button class="btn btn-primary full fs-6" type="button" onclick="initDailyGame()">Play daily game</button>
         </div>
       </div>
-      <div class="row my-3">
-        <div class="col-6">
-          <button class="btn btn-primary full" type="button" onclick="initLocalGame()">Play locally</button>
-        </div>
-        <div class="col-6">
-          <button class="btn btn-primary full" type="button" onclick="initAIGame()">Play versus computer</button>
-        </div>
-      </div>
-      <div class="row my-3">
-        <div class="col-6">
-          <button class="btn btn-primary full" type="button" onclick="initAIvsAIGame()">Spectate AI Game</button>
-        </div>
-        <div class="col-6">
-          <button class="btn btn-primary full" type="button" onclick="initDailyGame()">Play daily game</button>
-        </div>
-      </div>
+      Or, you can play online with a friend:<br/><br/>
+      <button class="btn btn-primary full" type="button" data-bs-toggle="modal" data-bs-target="#hostModal" onclick="initiateHosting()">Host</button>
+      <button class="btn btn-primary full" type="button" data-bs-toggle="modal" data-bs-target="#joinModal">Join</button>
     </div>
     <div id="game" style="display: none;" class="text-center">
       <div class="container d-flex flex-fill">
