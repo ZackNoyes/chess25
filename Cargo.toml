@@ -25,7 +25,7 @@ console_error_panic_hook = { version = "0.1.6", optional = true }
 wee_alloc = { version = "0.4.5", optional = true }
 js-sys = "0.3.63"
 chess = "3.2.0"
-web-sys = { version = "0.3.64", features = ["console"] }
+web-sys = { version = "0.3.64", features = ["console", "Location", "Window"] }
 fixed = "1.23.1"
 ansi_term = "0.12.1"
 serde = { version = "1.0.164", features = ["derive"] }
