@@ -19,7 +19,7 @@ if (process.env.NODE_ENV === 'production') {
   const redirectServer = http.createServer(redirectApp);
   redirectApp.use(function(req, res, next) {
     if (process.env.NODE_ENV == 'production' && !req.secure) {
-      return res.redirect('https://' + req.headers.host + req.url);
+      return res.redirect(301, 'https://' + req.headers.host + req.url);
     }
     next();
   });
@@ -54,6 +54,17 @@ import crypto from 'crypto';
 import 'log-timestamp';
 
 const CHANCE_OF_BONUS = 0.25;
+
+// https://stackoverflow.com/a/23816083/6567876
+function wwwRedirect(req, res, next) {
+  if (req.headers.host.slice(0, 4) === 'www.') {
+      var newHost = req.headers.host.slice(4);
+      return res.redirect(301, req.protocol + '://' + newHost + req.originalUrl);
+  }
+  next();
+};
+app.set('trust proxy', true);
+app.use(wwwRedirect);
 
 app.use(express.static(path.join(__dirname,'dist')));
 app.use(express.json());
