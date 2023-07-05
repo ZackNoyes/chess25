@@ -33,3 +33,11 @@ pub fn bonus_chance() -> Score { ONE / 4 }
 
 #[inline]
 pub fn no_bonus_chance() -> Score { ONE - bonus_chance() }
+
+// TODO:
+//  Overall TODOs for the AI:
+//   - Put the bot on Lichess and see how it does
+//   - Implement search extensions for certain things
+//   - Return partial results from a given depth (since with correct move
+//     ordering they're guaranteed to be better)
+//   - Use the killer heuristic
