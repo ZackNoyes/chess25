@@ -42,5 +42,3 @@ pub fn no_bonus_chance() -> Score { ONE - bonus_chance() }
 //     ordering they're guaranteed to be better)
 //   - Use the killer heuristic
 //   - Add the ability to export games (at least for people using the console)
-//   - Fix the issue where the buttons sometimes don't work (I think it's
-//     because of loading issues)

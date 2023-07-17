@@ -1111,3 +1111,6 @@ function loadStats() {
     charts[charts.length - 1].data.datasets[0].borderWidth[index] = 2;
   }
 }
+
+document.getElementById("mainLoadingIndicator").style.display = "none";
+document.getElementById("startOptions").style.display = "block";
