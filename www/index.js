@@ -1,7 +1,5 @@
 import { JSInterface } from "random-chess";
 
-// TODO: Add animations when the pieces move
-
 // Colour constants
 const BLACK_SQUARE_COLOR = 'rgb(176, 124, 92)';
 const WHITE_SQUARE_COLOR = 'rgb(240, 211, 175)';
@@ -9,6 +7,7 @@ const SELECTED_COLOR = 'rgba(20, 126, 72, 0.7)';
 const HOVER_COLOR = 'rgba(50, 50, 50, 0.4)';
 const ACTIVE_COLOR = 'rgba(154, 195, 69, 0.4)';
 const CHECK_WARNING_COLOR = 'rgba(220, 30, 30, 0.6)';
+const PIECE_ANIMATION_DURATION = 200;
 
 const CHANCE_OF_BONUS = 0.25;
 
@@ -39,6 +38,8 @@ var interactivity = {
   pointer_location: undefined,
   held_with: undefined,
 }
+
+var pieceAnimation = undefined;
 
 var activeSquares = [];
 
@@ -104,11 +105,35 @@ function drawPieces() {
             ctx.globalAlpha = 0.3;
           }
         }
+        if (pieceAnimation != undefined) {
+          if (file == pieceAnimation.dest.x && flip(rank) == pieceAnimation.dest.y) {
+            ctx.globalAlpha = 0;
+          }
+        }
         ctx.drawImage(img, file * SQUARE_SIZE, rank * SQUARE_SIZE, SQUARE_SIZE, SQUARE_SIZE);
         ctx.globalAlpha = 1;
       }
     }
   }
+
+  if (pieceAnimation != undefined) {
+    
+    let startX = pieceAnimation.source.x * SQUARE_SIZE;
+    let startY = flip(pieceAnimation.source.y) * SQUARE_SIZE;
+    let endX = pieceAnimation.dest.x * SQUARE_SIZE;
+    let endY = flip(pieceAnimation.dest.y) * SQUARE_SIZE;
+
+    let progress = (Date.now() - pieceAnimation.start) / PIECE_ANIMATION_DURATION;
+    let interpolated = progress * progress * (3 - 2 * progress);
+    let x = startX + (endX - startX) * interpolated;
+    let y = startY + (endY - startY) * interpolated;
+
+    let piece = wasmInterface.js_piece(pieceAnimation.dest.x, pieceAnimation.dest.y);
+    let img = images[urlForPiece(piece)];
+    ctx.drawImage(img, x, y, SQUARE_SIZE, SQUARE_SIZE);
+
+  }
+
 }
 
 function drawMoves() {
@@ -619,13 +644,26 @@ function registerMove(xf, yf, xt, yt, p) {
   activeSquares.push({ x: xf, y: yf });
   activeSquares.push({ x: xt, y: yt });
   startRandGen();
+
+  pieceAnimation = {
+    animation: setInterval(() => { draw(); }, 5),
+    start: Date.now(),
+    source: { x: xf, y: yf },
+    dest: { x: xt, y: yt },
+  }
+
+  setTimeout(() => {
+    clearInterval(pieceAnimation.animation);
+    pieceAnimation = undefined;
+  }, PIECE_ANIMATION_DURATION);
+
   draw();
 }
 
-var animation = undefined;
+var diceAnimation = undefined;
 function startRandGen() {
   var angle = 0;
-  animation = setInterval(() => {
+  diceAnimation = setInterval(() => {
     angle += 3;
     $("#dice").css('transform','rotate(' + angle + 'deg)');
   }, 5);
@@ -642,8 +680,8 @@ function startRandGen() {
 }
 
 function stopRandGen() {
-  clearInterval(animation);
-  animation = undefined;
+  clearInterval(diceAnimation);
+  diceAnimation = undefined;
 }
 
 function registerRand(isBonus) {
