@@ -1,14 +1,13 @@
 import { JSInterface } from "random-chess";
 
 // TODO: Place a red marker on the king when it is in check
-// TODO: Implement drag and drop
 // TODO: Add animations when the pieces move
 
 // Colour constants
 const BLACK_SQUARE_COLOR = 'rgb(176, 124, 92)';
 const WHITE_SQUARE_COLOR = 'rgb(240, 211, 175)';
 const SELECTED_COLOR = 'rgba(20, 126, 72, 0.7)';
-const HOVER_COLOR = 'rgba(150, 150, 150, 0.4)';
+const HOVER_COLOR = 'rgba(50, 50, 50, 0.4)';
 const ACTIVE_COLOR = 'rgba(154, 195, 69, 0.4)';
 
 const CHANCE_OF_BONUS = 0.25;
@@ -33,8 +32,14 @@ var rng = undefined;
 var turns = [];
 window.turns = turns;
 
-var hoveredSquare = undefined;
-var selectedPiece = undefined;
+var interactivity = {
+  state: "idle",
+  pieceSource: undefined,
+  pieceDest: undefined,
+  pointer_location: undefined,
+  held_with: undefined,
+}
+
 var activeSquares = [];
 
 function flip(rank) { return gameType != "networkG" ? 7 - rank : rank; }
@@ -50,7 +55,8 @@ function draw() {
   drawActiveSquares();
   drawPieces();
   drawMoves();
-  drawHover();
+  drawHeldOverIndicator();
+  drawHeldPiece();
   updateStatus();
 
 };
@@ -70,9 +76,10 @@ function drawBoard() {
 }
 
 function drawSelected() {
-  if (selectedPiece != undefined) {
+  let p = interactivity.pieceSource;
+  if (p != undefined) {
     ctx.fillStyle = SELECTED_COLOR;
-    ctx.fillRect(selectedPiece.x * SQUARE_SIZE, selectedPiece.y * SQUARE_SIZE, SQUARE_SIZE, SQUARE_SIZE);
+    ctx.fillRect(p.x * SQUARE_SIZE, p.y * SQUARE_SIZE, SQUARE_SIZE, SQUARE_SIZE);
   }
 }
 
@@ -83,15 +90,22 @@ function drawPieces() {
       var piece = wasmInterface.js_piece(file, flip(rank));
       if (piece != undefined) {
         let img = images[urlForPiece(piece)];
+        if (interactivity.state == "selectedAndHeld") {
+          if (file == interactivity.pieceSource.x && rank == interactivity.pieceSource.y) {
+            ctx.globalAlpha = 0.3;
+          }
+        }
         ctx.drawImage(img, file * SQUARE_SIZE, rank * SQUARE_SIZE, SQUARE_SIZE, SQUARE_SIZE);
+        ctx.globalAlpha = 1;
       }
     }
   }
 }
 
 function drawMoves() {
-  if (selectedPiece != undefined) {
-    for (let move of wasmInterface.js_moves_from(selectedPiece.x, flip(selectedPiece.y))) {
+  let p = interactivity.pieceSource;
+  if (p != undefined) {
+    for (let move of wasmInterface.js_moves_from(p.x, flip(p.y))) {
       ctx.beginPath();
       ctx.fillStyle = SELECTED_COLOR;
       ctx.arc(
@@ -104,18 +118,38 @@ function drawMoves() {
   }
 }
 
-function drawHover() {
-  if (hoveredSquare != undefined) {
-    ctx.fillStyle = HOVER_COLOR;
-    ctx.fillRect(hoveredSquare.x * SQUARE_SIZE, hoveredSquare.y * SQUARE_SIZE, SQUARE_SIZE, SQUARE_SIZE);
-  }
-}
-
 function drawActiveSquares() {
   for (let square of activeSquares) {
     ctx.fillStyle = ACTIVE_COLOR;
     ctx.fillRect(square.x * SQUARE_SIZE, flip(square.y) * SQUARE_SIZE, SQUARE_SIZE, SQUARE_SIZE);
   }
+}
+
+function drawHeldOverIndicator() {
+
+  if (interactivity.state == "selectedAndHeld") {
+    let size = interactivity.held_with == "mouse" ? SQUARE_SIZE * 0.6: SQUARE_SIZE;
+    ctx.beginPath();
+    ctx.fillStyle = HOVER_COLOR;
+    ctx.arc(
+      interactivity.pieceDest.x * SQUARE_SIZE + SQUARE_SIZE / 2,
+      interactivity.pieceDest.y * SQUARE_SIZE + SQUARE_SIZE / 2,
+      size, 0, 2 * Math.PI
+    );
+    ctx.fill();
+  }
+
+}
+
+function drawHeldPiece() {
+
+  if (interactivity.state == "selectedAndHeld") {
+    let piece = wasmInterface.js_piece(interactivity.pieceSource.x, flip(interactivity.pieceSource.y));
+    let img = images[urlForPiece(piece)];
+    let offset = interactivity.held_with == "mouse" ? 0.6 : 1.5;
+    ctx.drawImage(img, interactivity.pointer_location.x - SQUARE_SIZE * 0.6, interactivity.pointer_location.y - SQUARE_SIZE * offset, SQUARE_SIZE * 1.2, SQUARE_SIZE * 1.2);
+  }
+
 }
 
 function drawHistory(context, i) {
@@ -220,8 +254,11 @@ Promise.all(PIECES.map(loadImage)).then(pieces => {
 
 function checkInteractive() {
   if (awaitingMoveFrom != "ui") {
-    hoveredSquare = undefined;
-    selectedPiece = undefined;
+    interactivity = {
+      state: "idle",
+      pieceSource: undefined,
+      pieceDest: undefined,
+    }
     return false;
   }
   return true;
@@ -238,15 +275,60 @@ function makeAlert(alertType, alertText, timeout) {
   }, timeout);
 }
 
+function getCoords(event) {
+  let rect = canvas.getBoundingClientRect();
+  let x = Math.floor(event.offsetX * canvas.width / rect.width / SQUARE_SIZE);
+  let y = Math.floor(event.offsetY * canvas.height / rect.height / SQUARE_SIZE);
+  return { x: x, y: y };
+}
+
+canvas.addEventListener('pointerdown', event => {
+  
+  if (!checkInteractive()) { return; }
+
+  let coords = getCoords(event);
+
+  if (interactivity.state == "idle") {
+    if (wasmInterface.js_piece_color(coords.x, flip(coords.y)) == wasmInterface.js_get_side_to_move()) {
+      interactivity.state = "selectReady";
+      interactivity.pieceSource = coords;
+    }
+  } else if (interactivity.state == "selectedNotHeld") {
+    if (wasmInterface.js_piece_color(coords.x, flip(coords.y)) == wasmInterface.js_get_side_to_move()) {
+      interactivity.state = "selectReady";
+      interactivity.pieceSource = coords;
+    } else if (wasmInterface.js_check_move(interactivity.pieceSource.x, flip(interactivity.pieceSource.y), coords.x, flip(coords.y)) != undefined) {
+      interactivity.state = "moveReady";
+      interactivity.pieceDest = coords;
+    } else {
+      interactivity.state = "idle";
+      interactivity.pieceSource = undefined;
+      interactivity.pieceDest = undefined;
+    }
+  }
+
+  draw();
+
+});
+
 canvas.addEventListener('pointermove', event => {
 
   if (!checkInteractive()) { return; }
 
-  let rect = canvas.getBoundingClientRect();
-  let x = Math.floor(event.offsetX * canvas.width / rect.width / SQUARE_SIZE);
-  let y = Math.floor(event.offsetY * canvas.height / rect.height / SQUARE_SIZE);
+  let coords = getCoords(event);
 
-  hoveredSquare = { x: x, y: y };
+  if (interactivity.state == "selectReady") {
+    interactivity.state = "selectedAndHeld";
+    interactivity.pieceDest = coords;
+  } else if (interactivity.state == "selectedAndHeld") {
+    interactivity.pieceDest = coords;
+    let rect = canvas.getBoundingClientRect();
+    interactivity.pointer_location = {
+      x: event.offsetX * canvas.width / rect.width,
+      y: event.offsetY * canvas.height / rect.height
+    };
+    interactivity.held_with = event.pointerType;
+  }
 
   draw();
   
@@ -256,7 +338,11 @@ canvas.addEventListener('pointerout', event => {
 
   if (!checkInteractive()) { return; }
 
-  hoveredSquare = undefined;
+  if (interactivity.state == "selectedAndHeld" || interactivity.state == "moveReady") {
+    interactivity.state = "selectedNotHeld";
+    interactivity.pieceDest = undefined;
+  }
+  
   draw();
 });
 
@@ -264,21 +350,41 @@ canvas.addEventListener('pointerup', event => {
 
   if (!checkInteractive()) { return; }
 
-  if (wasmInterface.js_status() != "in progress") { return; }
+  let coords = getCoords(event);
 
-  // Get the x and y coordinates of the canvas event
-  let rect = canvas.getBoundingClientRect();
-  let x = Math.floor(event.offsetX * canvas.width / rect.width / SQUARE_SIZE);
-  let y = Math.floor(event.offsetY * canvas.height / rect.height / SQUARE_SIZE);
-  
-  if (selectedPiece == undefined) {
-    if (wasmInterface.js_piece_color(x, flip(y)) == wasmInterface.js_get_side_to_move()) {
-      selectedPiece = { x: x, y: y };
+  if (interactivity.state == "selectReady") {
+    interactivity.state = "selectedNotHeld";
+  } else if (interactivity.state == "selectedAndHeld") {
+    let success = enactMove(interactivity.pieceSource, coords);
+    if (success) {
+      interactivity.state = "idle";
+      interactivity.pieceSource = undefined;
+      interactivity.pieceDest = undefined;
+    } else {
+      interactivity.state = "selectedNotHeld";
+      interactivity.pieceDest = undefined;
     }
-  } else if (selectedPiece.x == x && selectedPiece.y == y) {
-    selectedPiece = undefined;
-  } else if (wasmInterface.js_check_move(selectedPiece.x, flip(selectedPiece.y), x, flip(y)) != undefined) {
-    if (wasmInterface.js_check_move(selectedPiece.x, flip(selectedPiece.y), x, flip(y))) {
+  } else if (interactivity.state == "moveReady") {
+    if (coords.x == interactivity.pieceDest.x && coords.y == interactivity.pieceDest.y) {
+      let success = enactMove(interactivity.pieceSource, coords);
+      console.assert(success);
+      interactivity.state = "idle";
+      interactivity.pieceSource = undefined;
+      interactivity.pieceDest = undefined;
+    } else {
+      interactivity.state = "selectedNotHeld";
+      interactivity.pieceDest = undefined;
+    }
+  }
+
+  draw();
+
+});
+
+function enactMove(source, dest) {
+
+  if (wasmInterface.js_check_move(source.x, flip(source.y), dest.x, flip(dest.y)) != undefined) {
+    if (wasmInterface.js_check_move(source.x, flip(source.y), dest.x, flip(dest.y))) {
       const myModal = bootstrap.Modal.getOrCreateInstance(document.getElementById('promotionSelect'));
       for (let piece of [1, 2, 3, 4]) {
         document.getElementById("promoOption" + piece).firstChild.src =
@@ -287,27 +393,20 @@ canvas.addEventListener('pointerup', event => {
             PIECES[piece] : PIECES[piece + 6]
           );
         document.getElementById("promoOption" + piece).onclick = () => {
-          registerMove(selectedPiece.x, flip(selectedPiece.y), x, flip(y), piece);
-          selectedPiece = undefined;
+          registerMove(source.x, flip(source.y), dest.x, flip(dest.y), piece);
           draw();
         };
       }
       myModal.show();
     } else {
-      registerMove(selectedPiece.x, flip(selectedPiece.y), x, flip(y), undefined);
-      selectedPiece = undefined;
+      registerMove(source.x, flip(source.y), dest.x, flip(dest.y), undefined);
     }
+    return true;
   } else {
-    if (wasmInterface.js_piece_color(x, flip(y)) == wasmInterface.js_get_side_to_move()) {
-      selectedPiece = { x: x, y: y };
-    } else {
-      selectedPiece = undefined;
-    }
+    return false;
   }
 
-  draw();
-
-});
+}
 
 function switchToGameUI() {
   document.getElementById("startOptions").style.display = "none";
