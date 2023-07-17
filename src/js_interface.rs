@@ -7,6 +7,8 @@ use crate::{
     my_board::{MyBoard, Status},
 };
 
+// TODO: Persist the current game (and possibly other state) between page loads
+
 #[wasm_bindgen]
 pub struct JSInterface {
     board: MyBoard,
