@@ -186,7 +186,7 @@ function drawHeldPiece() {
 
 }
 
-function drawHistory(context, i) {
+function drawHistory(context, i, history) {
   for (let file = 0; file < 8; file++) {
     for (let rank = 0; rank < 8; rank++) {
       if ((file + flip(rank)) % 2 == 0) {
@@ -195,11 +195,11 @@ function drawHistory(context, i) {
         context.fillStyle = WHITE_SQUARE_COLOR;
       }
       context.fillRect(file * SQUARE_SIZE, rank * SQUARE_SIZE, SQUARE_SIZE, SQUARE_SIZE);
-      if (wasmInterface.js_history_was_hot(file, flip(rank), i)) {
+      if (history[i][file][rank][1]) {
         context.fillStyle = ACTIVE_COLOR;
         context.fillRect(file * SQUARE_SIZE, rank * SQUARE_SIZE, SQUARE_SIZE, SQUARE_SIZE);
       }
-      var piece = wasmInterface.js_history_piece(file, flip(rank), i);
+      var piece = history[i][file][rank][0];
       if (piece != undefined) {
         let img = images[urlForPiece(piece)];
         context.drawImage(img, file * SQUARE_SIZE, rank * SQUARE_SIZE, SQUARE_SIZE, SQUARE_SIZE);
@@ -387,7 +387,7 @@ canvas.addEventListener('pointerup', event => {
   if (interactivity.state == "selectReady") {
     interactivity.state = "selectedNotHeld";
   } else if (interactivity.state == "selectedAndHeld") {
-    let success = enactMove(interactivity.pieceSource, coords);
+    let success = enactMove(interactivity.pieceSource, coords, false);
     if (success) {
       interactivity.state = "idle";
       interactivity.pieceSource = undefined;
@@ -398,7 +398,7 @@ canvas.addEventListener('pointerup', event => {
     }
   } else if (interactivity.state == "moveReady") {
     if (coords.x == interactivity.pieceDest.x && coords.y == interactivity.pieceDest.y) {
-      let success = enactMove(interactivity.pieceSource, coords);
+      let success = enactMove(interactivity.pieceSource, coords, true);
       console.assert(success);
       interactivity.state = "idle";
       interactivity.pieceSource = undefined;
@@ -413,7 +413,7 @@ canvas.addEventListener('pointerup', event => {
 
 });
 
-function enactMove(source, dest) {
+function enactMove(source, dest, anim) {
 
   if (wasmInterface.js_check_move(source.x, flip(source.y), dest.x, flip(dest.y)) != undefined) {
     if (wasmInterface.js_check_move(source.x, flip(source.y), dest.x, flip(dest.y))) {
@@ -425,13 +425,13 @@ function enactMove(source, dest) {
             PIECES[piece] : PIECES[piece + 6]
           );
         document.getElementById("promoOption" + piece).onclick = () => {
-          registerMove(source.x, flip(source.y), dest.x, flip(dest.y), piece);
+          registerMove(source.x, flip(source.y), dest.x, flip(dest.y), piece, true);
           draw();
         };
       }
       myModal.show();
     } else {
-      registerMove(source.x, flip(source.y), dest.x, flip(dest.y), undefined);
+      registerMove(source.x, flip(source.y), dest.x, flip(dest.y), undefined, anim);
     }
     return true;
   } else {
@@ -529,7 +529,7 @@ socket.on("opponentDisconnected", () => {
 });
 
 socket.on("opponentMove", (fromX, fromY, toX, toY, p) => {
-  registerMove(fromX, fromY, toX, toY, p);
+  registerMove(fromX, fromY, toX, toY, p, true);
 });
 
 socket.on("isBonus", (isBonus) => {
@@ -579,26 +579,6 @@ function initDailyGame() {
   if (localStorage.getItem("mostRecentDailyGame") == dateString) {
     bootstrap.Modal.getOrCreateInstance(document.getElementById("dailyStats")).show();
     document.getElementById("dailyModalTitle").innerHTML = "Today's Game";
-    document.getElementById("dailyResultText").innerHTML = localStorage.getItem("mostRecentDailyGameResult");
-    let updateCounter = setInterval(function() {
-      let nextMidnight = new Date();
-      nextMidnight.setHours(24,0,0,0);
-      let now = new Date();
-      let remainingTimeInSeconds = (nextMidnight.getTime() - now.getTime())/1000;
-      let hours = Math.floor(remainingTimeInSeconds / 3600);
-      var rest = remainingTimeInSeconds - hours * 3600;
-      let minutes = Math.floor(rest / 60);
-      var rest = rest - minutes * 60;
-      let seconds = Math.floor(rest);
-      if (remainingTimeInSeconds > 86370) {
-        window.location.reload();
-      }
-      if (document.getElementById("moveHistory") == undefined) {
-        clearInterval(interval);
-        return;
-      }
-      document.getElementById("moveHistory").innerHTML = "Tomorrow's game will be available in <b>" + String(hours).padStart(2, '0') + ":" + String(minutes).padStart(2, '0') + ":" + String(seconds).padStart(2, '0') + "</b>";
-    }, 100);
     loadStats();
     return;
   }
@@ -629,11 +609,11 @@ function dispatchAIMove() {
   //   This requires some changes to how webpack, etc. is used
   setTimeout(() => {
     let move = wasmInterface.js_get_engine_move();
-    registerMove(move[0], move[1], move[2], move[3], move[4]);
+    registerMove(move[0], move[1], move[2], move[3], move[4], true);
   }, 1000);
 }
 
-function registerMove(xf, yf, xt, yt, p) {
+function registerMove(xf, yf, xt, yt, p, anim) {
   console.assert(awaitingMoveFrom != undefined);
   if (awaitingMoveFrom == "ui" && gameType.startsWith("network")) {
     socket.emit("move", xf, yf, xt, yt, p);
@@ -645,17 +625,21 @@ function registerMove(xf, yf, xt, yt, p) {
   activeSquares.push({ x: xt, y: yt });
   startRandGen();
 
-  pieceAnimation = {
-    animation: setInterval(() => { draw(); }, 5),
-    start: Date.now(),
-    source: { x: xf, y: yf },
-    dest: { x: xt, y: yt },
-  }
+  if (anim) {
 
-  setTimeout(() => {
-    clearInterval(pieceAnimation.animation);
-    pieceAnimation = undefined;
-  }, PIECE_ANIMATION_DURATION);
+    pieceAnimation = {
+      animation: setInterval(() => { draw(); }, 5),
+      start: Date.now(),
+      source: { x: xf, y: yf },
+      dest: { x: xt, y: yt },
+    }
+
+    setTimeout(() => {
+      clearInterval(pieceAnimation.animation);
+      pieceAnimation = undefined;
+    }, PIECE_ANIMATION_DURATION);
+
+  }
 
   draw();
 }
@@ -816,26 +800,7 @@ function registerRand(isBonus) {
       localStorage.setItem("mostRecentDailyGameResult", text);
       localStorage.setItem("mostRecentWinner", winner);
       localStorage.setItem("mostRecentNumMoves", numMoves);
-      document.getElementById("dailyResultText").innerHTML = text;
-      document.getElementById("moveHistory").innerHTML = "";
-      for (let i = 0; i < turns.length; i++) {
-        document.getElementById("moveHistory").innerHTML += "<span data-bs-toggle='tooltip' data-bs-title='<canvas class=\"tooltip-canvas\" id=\"tooltipCanvas"+i+"\"></canvas>' class='" + (turns[i] == "w" ? "white" : "black") + "-box'></span>";
-      }
-      const tooltipTriggerList = document.querySelectorAll('[data-bs-toggle="tooltip"]');
-      const tooltipList = [...tooltipTriggerList].map(tooltipTriggerEl => new bootstrap.Tooltip(tooltipTriggerEl, {
-        html: true,
-        sanitize: false,
-      }));
-      for (let i = 0; i < turns.length; i++) {
-        let onInsert = function () {
-          let tooltipCanvas = document.getElementById("tooltipCanvas"+i);
-          tooltipCanvas.width = CANVAS_SIZE;
-          tooltipCanvas.height = CANVAS_SIZE;
-          var context = tooltipCanvas.getContext('2d');
-          drawHistory(context, i);
-        }
-        tooltipTriggerList[i].addEventListener("inserted.bs.tooltip", onInsert);
-      }
+      localStorage.setItem("mostRecentHistoryAndTurns", JSON.stringify([wasmInterface.js_history(), turns]));
 
       loadStats();
 
@@ -873,6 +838,51 @@ function getUserCreds() {
 var charts = [];
 window.charts = charts;
 function loadStats() {
+
+  document.getElementById("dailyResultText").innerHTML = localStorage.getItem("mostRecentDailyGameResult");
+  let updateCounter = setInterval(function() {
+    let nextMidnight = new Date();
+    nextMidnight.setHours(24,0,0,0);
+    let now = new Date();
+    let remainingTimeInSeconds = (nextMidnight.getTime() - now.getTime())/1000;
+    let hours = Math.floor(remainingTimeInSeconds / 3600);
+    var rest = remainingTimeInSeconds - hours * 3600;
+    let minutes = Math.floor(rest / 60);
+    var rest = rest - minutes * 60;
+    let seconds = Math.floor(rest);
+    if (remainingTimeInSeconds > 86370) {
+      window.location.reload();
+    }
+    if (document.getElementById("countdown") == undefined) {
+      clearInterval(interval);
+      return;
+    }
+    document.getElementById("countdown").innerHTML = "Tomorrow's game will be available in <b>" + String(hours).padStart(2, '0') + ":" + String(minutes).padStart(2, '0') + ":" + String(seconds).padStart(2, '0') + "</b>";
+  }, 100);
+
+
+  let historyAndTurns = JSON.parse(localStorage.getItem("mostRecentHistoryAndTurns"));
+  let history = historyAndTurns[0];
+  let turns = historyAndTurns[1];
+  document.getElementById("moveHistory").innerHTML = "";
+  for (let i = 0; i < turns.length; i++) {
+    document.getElementById("moveHistory").innerHTML += "<span data-bs-toggle='tooltip' data-bs-title='<canvas class=\"tooltip-canvas\" id=\"tooltipCanvas"+i+"\"></canvas>' class='" + (turns[i] == "w" ? "white" : "black") + "-box'></span>";
+  }
+  const tooltipTriggerList = document.querySelectorAll('[data-bs-toggle="tooltip"]');
+  const tooltipList = [...tooltipTriggerList].map(tooltipTriggerEl => new bootstrap.Tooltip(tooltipTriggerEl, {
+    html: true,
+    sanitize: false,
+  }));
+  for (let i = 0; i < turns.length; i++) {
+    let onInsert = function () {
+      let tooltipCanvas = document.getElementById("tooltipCanvas"+i);
+      tooltipCanvas.width = CANVAS_SIZE;
+      tooltipCanvas.height = CANVAS_SIZE;
+      var context = tooltipCanvas.getContext('2d');
+      drawHistory(context, i, history);
+    }
+    tooltipTriggerList[i].addEventListener("inserted.bs.tooltip", onInsert);
+  }
 
   for (let chart of charts) {
     chart.destroy();

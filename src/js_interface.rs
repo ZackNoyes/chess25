@@ -22,6 +22,7 @@ impl JSInterface {
         crate::utils::set_panic_hook();
         // This will crash the code on a wasm target and refresh the page after
         // 02/09/2023 So that it's harder for people to steal my WASM
+        // TODO: Change this value
         explode(1693663199000);
         let weights = crate::engine::feature_eval::Weights {
             pieces: [[1.0, 3.0, 3.0, 5.0, 9.0, 0.0], [
@@ -62,18 +63,34 @@ impl JSInterface {
         }
     }
 
-    pub fn js_history_piece(&self, file: usize, rank: usize, index: usize) -> Option<JsString> {
-        let square = make_square(file, rank);
-        match self.board_history[index][square] {
-            Some((p, c)) => Some(p.to_string(c).into()),
-            _ => None,
+    pub fn js_history(&self) -> Array {
+        let history = Array::new();
+        for (i, board) in self.board_history.iter().enumerate() {
+            let js_board = Array::new();
+            for file in 0..8 {
+                let js_file = Array::new();
+                for rank in 0..8 {
+                    let square = make_square(file, rank);
+                    let sq_info = Array::new();
+                    sq_info.push(
+                        &match board[square] {
+                            Some((p, c)) => Some(p.to_string(c)),
+                            _ => None,
+                        }
+                        .into(),
+                    );
+                    sq_info.push(
+                        &(self.move_history[i].get_source() == square
+                            || self.move_history[i].get_dest() == square)
+                            .into(),
+                    );
+                    js_file.push(&sq_info.into());
+                }
+                js_board.push(&js_file.into());
+            }
+            history.push(&js_board.into());
         }
-    }
-
-    pub fn js_history_was_hot(&self, file: usize, rank: usize, index: usize) -> bool {
-        let square = make_square(file, rank);
-        self.move_history[index].get_source() == square
-            || self.move_history[index].get_dest() == square
+        history
     }
 
     pub fn js_piece_color(&self, file: usize, rank: usize) -> JsString {
