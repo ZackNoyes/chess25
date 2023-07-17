@@ -1,21 +1,22 @@
 import { JSInterface } from "random-chess";
-
-// Colour constants
-const BLACK_SQUARE_COLOR = 'rgb(176, 124, 92)';
-const WHITE_SQUARE_COLOR = 'rgb(240, 211, 175)';
-const SELECTED_COLOR = 'rgba(20, 126, 72, 0.7)';
-const HOVER_COLOR = 'rgba(50, 50, 50, 0.4)';
-const ACTIVE_COLOR = 'rgba(154, 195, 69, 0.4)';
-const CHECK_WARNING_COLOR = 'rgba(220, 30, 30, 0.6)';
-const PIECE_ANIMATION_DURATION = 200;
-
-const CHANCE_OF_BONUS = 0.25;
+import { drawHistory, urlForPiece, images } from './utils.js';
+import {
+  BLACK_SQUARE_COLOR,
+  WHITE_SQUARE_COLOR,
+  SELECTED_COLOR,
+  HOVER_COLOR,
+  ACTIVE_COLOR,
+  CHECK_WARNING_COLOR,
+  PIECE_ANIMATION_DURATION,
+  CHANCE_OF_BONUS,
+  CANVAS_SIZE,
+  SQUARE_SIZE,
+  PIECES
+} from "./constants.js";
 
 // Give the canvas room for all of our cells and a 1px border
 // around each of them.
 const canvas = document.getElementById("game-canvas");
-const CANVAS_SIZE = 600;
-const SQUARE_SIZE = CANVAS_SIZE / 8;
 canvas.width = CANVAS_SIZE;
 canvas.height = CANVAS_SIZE;
 var ctx = canvas.getContext('2d');
@@ -186,28 +187,6 @@ function drawHeldPiece() {
 
 }
 
-function drawHistory(context, i, history) {
-  for (let file = 0; file < 8; file++) {
-    for (let rank = 0; rank < 8; rank++) {
-      if ((file + flip(rank)) % 2 == 0) {
-        context.fillStyle = BLACK_SQUARE_COLOR;
-      } else {
-        context.fillStyle = WHITE_SQUARE_COLOR;
-      }
-      context.fillRect(file * SQUARE_SIZE, rank * SQUARE_SIZE, SQUARE_SIZE, SQUARE_SIZE);
-      if (history[i][file][rank][1]) {
-        context.fillStyle = ACTIVE_COLOR;
-        context.fillRect(file * SQUARE_SIZE, rank * SQUARE_SIZE, SQUARE_SIZE, SQUARE_SIZE);
-      }
-      var piece = history[i][file][rank][0];
-      if (piece != undefined) {
-        let img = images[urlForPiece(piece)];
-        context.drawImage(img, file * SQUARE_SIZE, rank * SQUARE_SIZE, SQUARE_SIZE, SQUARE_SIZE);
-      }
-    }
-  }
-}
-
 function updateStatus() {
 
   let statusLabel = document.getElementById("status");
@@ -263,28 +242,6 @@ function updateStatus() {
   }
   
 };
-
-const urlForPiece = (piece) => {
-  var t = piece.toUpperCase();
-  var c = t == piece ? 'w' : 'b';
-  return 'images/cburnett/' + c + t + '.svg';
-}
-const images = {};
-const loadImage = piece =>
-  new Promise((resolve, reject) => {
-    const img = new Image();
-    img.onload = () => resolve(img);
-    img.onerror = reject;
-    img.src = urlForPiece(piece);
-    images[urlForPiece(piece)] = img;
-  });
-const PIECES = [
-  'P', 'N', 'B', 'R', 'Q', 'K',
-  'p', 'n', 'b', 'r', 'q', 'k'
-];
-Promise.all(PIECES.map(loadImage)).then(pieces => {
-  draw();
-});
 
 function checkInteractive() {
   if (awaitingMoveFrom != "ui") {
