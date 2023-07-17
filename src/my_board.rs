@@ -315,6 +315,12 @@ impl MyBoard {
         ret
     }
 
+    pub fn move_is_dangerous(&self, mv: ChessMove) -> bool {
+        let mut bd = *self;
+        bd.apply_move(mv);
+        bd.in_check(!bd.side_to_move)
+    }
+
     pub fn king_square(&self, color: Color) -> Option<Square> {
         ALL_SQUARES
             .iter()

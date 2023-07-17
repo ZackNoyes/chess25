@@ -107,7 +107,9 @@ impl JSInterface {
         let moves = self.board.moves_from(square);
         let js_moves = Array::new();
         for m in moves {
-            js_moves.push(&move_to_array(m));
+            let arr_mv = move_to_array(m);
+            arr_mv.push(&self.board.move_is_dangerous(m).into());
+            js_moves.push(&arr_mv);
         }
         js_moves
     }

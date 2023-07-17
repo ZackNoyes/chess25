@@ -1,6 +1,5 @@
 import { JSInterface } from "random-chess";
 
-// TODO: Place a red marker on the king when it is in check
 // TODO: Add animations when the pieces move
 
 // Colour constants
@@ -9,7 +8,7 @@ const WHITE_SQUARE_COLOR = 'rgb(240, 211, 175)';
 const SELECTED_COLOR = 'rgba(20, 126, 72, 0.7)';
 const HOVER_COLOR = 'rgba(50, 50, 50, 0.4)';
 const ACTIVE_COLOR = 'rgba(154, 195, 69, 0.4)';
-const CHECK_WARNING_COLOR = 'rgba(255, 0, 0, 0.4)';
+const CHECK_WARNING_COLOR = 'rgba(220, 30, 30, 0.6)';
 
 const CHANCE_OF_BONUS = 0.25;
 
@@ -117,7 +116,7 @@ function drawMoves() {
   if (p != undefined) {
     for (let move of wasmInterface.js_moves_from(p.x, flip(p.y))) {
       ctx.beginPath();
-      ctx.fillStyle = SELECTED_COLOR;
+      ctx.fillStyle = move[5] ? CHECK_WARNING_COLOR : SELECTED_COLOR;
       ctx.arc(
         move[2] * SQUARE_SIZE + SQUARE_SIZE / 2,
         flip(move[3]) * SQUARE_SIZE + SQUARE_SIZE / 2,
@@ -1074,5 +1073,3 @@ function loadStats() {
     charts[charts.length - 1].data.datasets[0].borderWidth[index] = 2;
   }
 }
-
-initLocalGame();
