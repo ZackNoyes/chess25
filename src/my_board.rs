@@ -303,6 +303,25 @@ impl MyBoard {
         .flat_map(move |sq| self.moves_from(sq))
     }
 
+    pub fn in_check(&self, color: Color) -> bool {
+        let mut bd = *self;
+        bd.awaiting_bonus = false;
+        if bd.side_to_move == color {
+            bd.switch_side_to_move();
+        }
+        let ret = bd
+            .all_moves()
+            .any(|m| bd[m.get_dest()] == Some((Piece::King, color)));
+        ret
+    }
+
+    pub fn king_square(&self, color: Color) -> Option<Square> {
+        ALL_SQUARES
+            .iter()
+            .find(|&&sq| self[sq] == Some((Piece::King, color)))
+            .copied()
+    }
+
     fn color_combined(&self, c: Color) -> BitBoard {
         match c {
             Color::White => self.white_pieces,

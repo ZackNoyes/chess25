@@ -1,4 +1,4 @@
-use chess::{ChessMove, Color, Square, ALL_PIECES};
+use chess::{ChessMove, Color::*, Square, ALL_COLORS, ALL_PIECES};
 use js_sys::{Array, JsString};
 use wasm_bindgen::prelude::*;
 
@@ -32,11 +32,7 @@ impl JSInterface {
             side_to_move: 3.0,
         };
         JSInterface {
-            board: MyBoard::initial_board(if white_starts {
-                Color::White
-            } else {
-                Color::Black
-            }),
+            board: MyBoard::initial_board(if white_starts { White } else { Black }),
             engine_black: Box::new(crate::engine::alphabeta::AlphaBeta::new(
                 crate::engine::feature_eval::FeatureEval::new(weights, 15.0),
                 10,
@@ -83,10 +79,27 @@ impl JSInterface {
     pub fn js_piece_color(&self, file: usize, rank: usize) -> JsString {
         let square = make_square(file, rank);
         match self.board[square] {
-            Some((_, Color::White)) => "white".into(),
-            Some((_, Color::Black)) => "black".into(),
+            Some((_, White)) => "white".into(),
+            Some((_, Black)) => "black".into(),
             _ => "empty".into(),
         }
+    }
+
+    pub fn js_checked_squares(&self) -> Array {
+        let checked_kings = Array::new();
+        if !self.board.get_status().is_in_progress() {
+            return checked_kings;
+        }
+        for c in ALL_COLORS {
+            if self.board.in_check(c) {
+                checked_kings.push(&square_to_array(
+                    self.board
+                        .king_square(c)
+                        .expect("there should be kings on the board"),
+                ));
+            }
+        }
+        checked_kings
     }
 
     pub fn js_moves_from(&self, file: usize, rank: usize) -> Array {
@@ -145,8 +158,8 @@ impl JSInterface {
 
     pub fn js_get_engine_move(&mut self) -> Array {
         move_to_array(match self.board.get_side_to_move() {
-            Color::White => self.engine_white.get_move(&self.board),
-            Color::Black => self.engine_black.get_move(&self.board),
+            White => self.engine_white.get_move(&self.board),
+            Black => self.engine_black.get_move(&self.board),
         })
     }
 }
@@ -155,11 +168,18 @@ impl From<Status> for JsString {
     fn from(r: Status) -> JsString {
         match r {
             Status::InProgress => "in progress".into(),
-            Status::Win(Color::White) => "white".into(),
-            Status::Win(Color::Black) => "black".into(),
+            Status::Win(White) => "white".into(),
+            Status::Win(Black) => "black".into(),
             Status::Draw => "draw".into(),
         }
     }
+}
+
+fn square_to_array(s: Square) -> Array {
+    let js_square = Array::new();
+    js_square.push(&s.get_file().to_index().into());
+    js_square.push(&s.get_rank().to_index().into());
+    js_square
 }
 
 fn move_to_array(m: ChessMove) -> Array {
