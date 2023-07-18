@@ -1,5 +1,5 @@
 import { JSInterface } from "random-chess";
-import { drawHistory, urlForPiece, images } from './utils.js';
+import { drawHistory, getImage } from './utils.js';
 import {
   BLACK_SQUARE_COLOR,
   WHITE_SQUARE_COLOR,
@@ -46,7 +46,7 @@ var activeSquares = [];
 
 function flip(rank) { return gameType != "networkG" ? 7 - rank : rank; }
 
-function draw() {
+async function draw() {
 
   checkInteractive();
 
@@ -56,10 +56,10 @@ function draw() {
   drawCheckWarnings();
   drawSelected();
   drawActiveSquares();
-  drawPieces();
+  await drawPieces();
   drawMoves();
   drawHeldOverIndicator();
-  drawHeldPiece();
+  await drawHeldPiece();
   updateStatus();
 
 };
@@ -94,13 +94,13 @@ function drawSelected() {
   }
 }
 
-function drawPieces() {
+async function drawPieces() {
 
   for (let file = 0; file < 8; file++) {
     for (let rank = 0; rank < 8; rank++) {
       var piece = wasmInterface.js_piece(file, flip(rank));
       if (piece != undefined) {
-        let img = images[urlForPiece(piece)];
+        let img = await getImage(piece);
         if (interactivity.state == "selectedAndHeld") {
           if (file == interactivity.pieceSource.x && rank == interactivity.pieceSource.y) {
             ctx.globalAlpha = 0.3;
@@ -130,7 +130,7 @@ function drawPieces() {
     let y = startY + (endY - startY) * interpolated;
 
     let piece = wasmInterface.js_piece(pieceAnimation.dest.x, pieceAnimation.dest.y);
-    let img = images[urlForPiece(piece)];
+    let img = await getImage(piece);
     ctx.drawImage(img, x, y, SQUARE_SIZE, SQUARE_SIZE);
 
   }
@@ -176,11 +176,11 @@ function drawHeldOverIndicator() {
 
 }
 
-function drawHeldPiece() {
+async function drawHeldPiece() {
 
   if (interactivity.state == "selectedAndHeld") {
     let piece = wasmInterface.js_piece(interactivity.pieceSource.x, flip(interactivity.pieceSource.y));
-    let img = images[urlForPiece(piece)];
+    let img = await getImage(piece);
     let offset = interactivity.held_with == "mouse" ? 0.6 : 1.5;
     ctx.drawImage(img, interactivity.pointer_location.x - SQUARE_SIZE * 0.6, interactivity.pointer_location.y - SQUARE_SIZE * offset, SQUARE_SIZE * 1.2, SQUARE_SIZE * 1.2);
   }
@@ -731,6 +731,16 @@ function registerRand(isBonus) {
 
       document.getElementById("quitButton").style.display = "block";
 
+      let winner = wasmInterface.js_status() == "white" ? "You" : "The computer";
+      let numMoves = turns.length;
+      let text = wasmInterface.js_status() == "draw" ? "The game was a draw after " + numMoves + " moves" : winner + " won in " + numMoves + " moves";
+
+      let fullGame = {
+        history: wasmInterface.js_history(),
+        turns: turns,
+        resultString: text
+      };
+
       var request = new XMLHttpRequest();
       request.open("POST", "/api/result", false);
       request.setRequestHeader("Content-Type", "application/json");
@@ -739,7 +749,8 @@ function registerRand(isBonus) {
         "password": getUserCreds()[1],
         "date": dateString,
         "numMoves": turns.length,
-        "winner": wasmInterface.js_status()
+        "winner": wasmInterface.js_status(),
+        "fullGame": fullGame
       }));
 
       if (request.status != 200) {
@@ -747,17 +758,13 @@ function registerRand(isBonus) {
         return;
       }
 
-      localStorage.setItem("mostRecentDailyGame", dateString);
-
       bootstrap.Modal.getOrCreateInstance(document.getElementById("dailyStats")).show();
       document.getElementById("dailyModalTitle").innerHTML = "Game Over";
-      let winner = wasmInterface.js_status() == "white" ? "You" : "The computer";
-      let numMoves = turns.length;
-      let text = wasmInterface.js_status() == "draw" ? "The game was a draw after " + numMoves + " moves" : winner + " won in " + numMoves + " moves";
-      localStorage.setItem("mostRecentDailyGameResult", text);
+
+      localStorage.setItem("mostRecentDailyGame", dateString);
       localStorage.setItem("mostRecentWinner", winner);
       localStorage.setItem("mostRecentNumMoves", numMoves);
-      localStorage.setItem("mostRecentHistoryAndTurns", JSON.stringify([wasmInterface.js_history(), turns]));
+      localStorage.setItem("mostRecentFullGame", JSON.stringify(fullGame));
 
       loadStats();
 
@@ -796,7 +803,12 @@ var charts = [];
 window.charts = charts;
 function loadStats() {
 
-  document.getElementById("dailyResultText").innerHTML = localStorage.getItem("mostRecentDailyGameResult");
+  let fullGame = JSON.parse(localStorage.getItem("mostRecentFullGame"));
+  let history = fullGame.history;
+  let turns = fullGame.turns;
+  let resultString = fullGame.resultString;
+
+  document.getElementById("dailyResultText").innerHTML = resultString;
   let updateCounter = setInterval(function() {
     let nextMidnight = new Date();
     nextMidnight.setHours(24,0,0,0);
@@ -817,10 +829,6 @@ function loadStats() {
     document.getElementById("countdown").innerHTML = "Tomorrow's game will be available in <b>" + String(hours).padStart(2, '0') + ":" + String(minutes).padStart(2, '0') + ":" + String(seconds).padStart(2, '0') + "</b>";
   }, 100);
 
-
-  let historyAndTurns = JSON.parse(localStorage.getItem("mostRecentHistoryAndTurns"));
-  let history = historyAndTurns[0];
-  let turns = historyAndTurns[1];
   document.getElementById("moveHistory").innerHTML = "";
   for (let i = 0; i < turns.length; i++) {
     document.getElementById("moveHistory").innerHTML += "<span data-bs-toggle='tooltip' data-bs-title='<canvas class=\"tooltip-canvas\" id=\"tooltipCanvas"+i+"\"></canvas>' class='" + (turns[i] == "w" ? "white" : "black") + "-box'></span>";
@@ -1081,3 +1089,27 @@ function loadStats() {
 
 document.getElementById("mainLoadingIndicator").style.display = "none";
 document.getElementById("startOptions").style.display = "block";
+
+if (new URLSearchParams(window.location.search).get("dailygame") == "true") {
+  window.history.replaceState("daily game", "Daily Game", "/");
+  initDailyGame();
+}
+
+function shareGame() {
+  let button = document.getElementById("shareButton");
+  navigator.clipboard.writeText(window.location.hostname + "/share/?game=" + btoa(localStorage.getItem("userID") + ":" + localStorage.getItem("mostRecentDailyGame"))).then(() => {
+    var tooltip = new bootstrap.Tooltip(button, {title: "Link copied to clipboard"});
+    tooltip.show();
+    setTimeout(() => {
+      tooltip.hide();
+    }, 2000);
+  },
+  () => {
+    var tooltip = new bootstrap.Tooltip(button, {title: "Link copied to clipboard"});
+    tooltip.show();
+    setTimeout(() => {
+      tooltip.hide();
+    }, 2000);
+  });
+}
+window.shareGame = shareGame;

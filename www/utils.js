@@ -6,41 +6,49 @@ import {
   PIECES
 } from "./constants.js";
 
-export function drawHistory(context, i, history) {
+function flip(rank) {
+  return 7 - rank;
+}
+
+export async function drawHistory(context, i, history) {
+  await imagePromise;
   for (let file = 0; file < 8; file++) {
     for (let rank = 0; rank < 8; rank++) {
-      if ((file + rank) % 2 == 0) {
+      if ((file + flip(rank)) % 2 == 0) {
         context.fillStyle = BLACK_SQUARE_COLOR;
       } else {
         context.fillStyle = WHITE_SQUARE_COLOR;
       }
       context.fillRect(file * SQUARE_SIZE, rank * SQUARE_SIZE, SQUARE_SIZE, SQUARE_SIZE);
-      if (history[i][file][rank][1]) {
+      if (history[i][file][flip(rank)][1]) {
         context.fillStyle = ACTIVE_COLOR;
         context.fillRect(file * SQUARE_SIZE, rank * SQUARE_SIZE, SQUARE_SIZE, SQUARE_SIZE);
       }
-      var piece = history[i][file][rank][0];
+      var piece = history[i][file][flip(rank)][0];
       if (piece != undefined) {
-        let img = images[urlForPiece(piece)];
+        let img = await getImage(piece);
         context.drawImage(img, file * SQUARE_SIZE, rank * SQUARE_SIZE, SQUARE_SIZE, SQUARE_SIZE);
       }
     }
   }
 }
 
-export const urlForPiece = (piece) => {
-  var t = piece.toUpperCase();
-  var c = t == piece ? 'w' : 'b';
-  return 'images/cburnett/' + c + t + '.svg';
+export async function getImage(piece) {
+  await imagePromise;
+  return images[piece];
 }
-export const images = {};
+
+const images = {};
 
 const loadImage = piece =>
   new Promise((resolve, reject) => {
     const img = new Image();
     img.onload = () => resolve(img);
     img.onerror = reject;
-    img.src = urlForPiece(piece);
-    images[urlForPiece(piece)] = img;
+    var t = piece.toUpperCase();
+    var c = t == piece ? 'w' : 'b';
+    img.src = '/images/cburnett/' + c + t + '.svg';
+    images[piece] = img;
   });
-PIECES.map(loadImage);
+
+var imagePromise = Promise.all(PIECES.map(loadImage));

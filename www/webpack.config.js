@@ -14,7 +14,7 @@ module.exports = [
     ],
   },
   {
-    entry: "./bootstrap-share.js",
+    entry: "./share.js",
     output: {
       path: path.resolve(__dirname, "dist"),
       filename: "share/share.js",

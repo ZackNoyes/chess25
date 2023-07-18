@@ -117,6 +117,13 @@ app.post('/api/result', async (req, res) => {
   }
   console.log("RESULT " + req.body.id + ", " + req.body.date + ", " + req.body.numMoves + ", " + req.body.winner);
   await redisClient.rPush('raw_results', JSON.stringify(req.body));
+
+  if (req.body.fullGame != undefined) {
+    let buff = Buffer.from(req.body.id + ':' + req.body.date);
+    let b64 = buff.toString('base64');
+    await redisClient.hSet('games', b64, JSON.stringify(req.body.fullGame));
+  }
+
   let bucket = Math.min(Math.floor(req.body.numMoves / 10), 10);
   if (req.body.winner == "white") {
     await redisClient.hIncrBy('user:' + req.body.id, 'num_wins', 1);
@@ -169,6 +176,19 @@ app.get('/api/stats/:id/:date', async (req, res) => {
     dWinMoves: dWinMoves,
     dLossMoves: dLossMoves
   });
+});
+
+app.get('/api/game/:code', async (req, res) => {
+  let buff = Buffer.from(req.params.code, 'base64');
+  let ascii = buff.toString('ascii');
+  console.log("GAME " + req.params.code + " (" + ascii + ")");
+  let game = await redisClient.hGet('games', req.params.code);
+  if (game == null) {
+    res.sendStatus(204);
+    return;
+  } else {
+    res.status(200).send(game);
+  }
 });
 
 // Stuff for the online games
