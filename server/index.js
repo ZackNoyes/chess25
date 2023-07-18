@@ -57,6 +57,10 @@ const CHANCE_OF_BONUS = 0.25;
 
 // https://stackoverflow.com/a/23816083/6567876
 function wwwRedirect(req, res, next) {
+  if (req.headers.host == undefined) {
+    console.log("NO HOST HEADER");
+    return res.sendStatus(400);
+  }
   if (req.headers.host.slice(0, 4) === 'www.') {
       var newHost = req.headers.host.slice(4);
       return res.redirect(301, req.protocol + '://' + newHost + req.originalUrl);
