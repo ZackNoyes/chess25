@@ -11,14 +11,43 @@
         display: block;
         margin-left: auto;
         margin-right: auto;
-        margin-bottom: 60px;
-        margin-top: 30px;
+        margin-bottom: 10px;
       }
       .compareGameCol > .static-canvas {
         width: min(45vw, 40vh, 300px, 100%);
       }
       #singleGameCol > .static-canvas {
         width: min(95vw, 40vh, 300px, 100%);
+      }
+      .black-box {
+        display: inline-block;
+        width: 20px;
+        height: 20px;
+        background-color: black;
+        border-radius: 6px;
+        margin: 6px 5px;
+        border: 1px solid grey;
+        padding: 2px;
+      }
+      .white-box {
+        display: inline-block;
+        width: 20px;
+        height: 20px;
+        background-color: white;
+        border-radius: 6px;
+        margin: 6px 5px;
+        border: 2px solid rgb(97, 97, 97);
+        padding: 1px;
+      }
+      .final-move {
+        padding: 0px;
+        border-width: 3px;
+        border-color: rgb(85, 85, 223);
+      }
+      .current-move {
+        padding: 0px;
+        border-width: 3px;
+        border-color: rgb(206, 194, 65);
       }
     </style>
   </head>
@@ -38,33 +67,49 @@
     </div>
     <div class="container text-center" id="gameNotFound" style="display: none;">
       <p>We couldn't find the game that was shared with you. Please check that you have the correct URL and try again.</p>
-      <a role="button" class="btn btn-primary mx-auto" href="../">Return to Chess25</a>
     </div>
-    <div class="container text-center" id="singleGame" style="display: none;">
-      <p id="ownGameExplanation" style="display: none;">This page shows your game from <strong class="dateOfGame"></strong>. Send this link to someone else to share your game.</p>
-      <p id="onlyTheirGameExplanation" style="display: none;">This page shows another player's game from <strong class="dateOfGame"></strong>.</p>
-      <a role="button" class="btn btn-primary mx-auto" href="../">Return to Chess25</a>
-      <hr/>
-      <div class="row">
-        <p id="singleResult">loading...</p>
-        <div class="col-12" id="singleGameCol"></div>
-      </div>
-    </div>
-    <div class="container text-center" id="gameComparison" style="display: none;">
-      <p>Comparing games from <strong class="dateOfGame"></strong>.</p>
-      <!--TODO: Add share you game button-->
-      <a role="button" class="btn btn-primary mx-auto" href="../">Return to Chess25</a>
-      <hr/>
-      <div class="row">
-        <div class="col-6 compareGameCol" id="ownGameCol">
-          <h5 class="display-6">Your game</h5>
-          <p id="ownResult">loading...</p>
-        </div>
-        <div class="col-6 compareGameCol" id="theirGameCol">
-          <h5 class="display-6">Their game</h5>
-          <p id="theirResult">loading...</p>
+    <div class="container text-center" id="gamesDisplay" style="display: none;">
+      <div class="mt-0" id="singleGame" style="display: none;">
+        <p id="ownGameExplanation" style="display: none;">This page shows your game from <strong class="dateOfGame"></strong>. Send this link to someone else to share your game. If this is today's game, they won't be able to see your game until they've also played the daily game.</p>
+        <p id="onlyTheirGameExplanation" style="display: none;">This page shows another player's game from <strong class="dateOfGame"></strong>.</p>
+        <div class="row">
+          <h5 class="display-6 mt-2">Your game</h5>
+          <p id="singleResult">loading...</p>
+          <div class="col-12" id="singleGameCol"></div>
         </div>
       </div>
+      <div id="gameComparison" style="display: none;">
+        <p>Comparing games from <strong class="dateOfGame"></strong>.</p>
+        <div class="row">
+          <div class="col-6">
+            <h5 class="display-6">Your game</h5>
+            <p id="ownResult">loading...</p>
+          </div>
+          <div class="col-6">
+            <h5 class="display-6">Their game</h5>
+            <p id="theirResult">loading...</p>
+          </div>
+        </div>
+        <div class="row">
+          <div class="col-6 compareGameCol" id="ownGameCol"></div>
+          <div class="col-6 compareGameCol" id="theirGameCol"></div>
+        </div>
+      </div>
+      <hr/>
+      <p id="moveHistory"></p>
+      <button type="button" class="btn btn-light mx-3 mx-sm-5" onclick="decMove()" id="decButton">
+        <svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" fill="currentColor" class="bi bi-caret-left-fill" viewBox="0 0 16 16">
+          <path d="m3.86 8.753 5.482 4.796c.646.566 1.658.106 1.658-.753V3.204a1 1 0 0 0-1.659-.753l-5.48 4.796a1 1 0 0 0 0 1.506z"/>
+        </svg>
+      </button>
+      <button type="button" class="btn btn-light mx-3 mx-sm-5" onclick="incMove()" id="incButton">
+        <svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" fill="currentColor" class="bi bi-caret-right-fill" viewBox="0 0 16 16">
+          <path d="m12.14 8.753-5.482 4.796c-.646.566-1.658.106-1.658-.753V3.204a1 1 0 0 1 1.659-.753l5.48 4.796a1 1 0 0 1 0 1.506z"/>
+        </svg>
+      </button>
+      <hr/>
+      <button type="button" class="btn btn-primary mx-3 mx-sm-5 my-1" style="display: none;" onclick="shareGame()" id="shareButton" data-bs-toggle="tooltip" data-bs-trigger="manual" data-bs-title="Error sharing">Share your game</button>
+      <a role="button" class="btn btn-primary mx-3 mx-sm-5 my-1" href="../">Return to Chess25</a>
     </div>
     <noscript>This page contains webassembly and javascript content, please enable javascript in your browser.</noscript>
     <script src="//cdnjs.cloudflare.com/ajax/libs/seedrandom/3.0.5/seedrandom.min.js"></script> 
