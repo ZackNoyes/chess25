@@ -89,6 +89,10 @@ if (request.status == 200) {
   console.error("Unexpected status code: " + request.status);
 }
 
+if (theirGame != null) {
+  theirGame.resultString = theirGame.resultString.replace("You", "They");
+}
+
 if (showGames) {
 
   document.getElementById('gamesDisplay').style.display = 'block';
@@ -107,6 +111,7 @@ if (showGames) {
     document.getElementById('singleGame').style.display = 'block';
     document.getElementById('ownGameExplanation').style.display = 'block';
     document.getElementById('singleResult').innerHTML = myGame.resultString;
+    document.getElementById('singleTitle').innerHTML = "Your game";
 
     addCanvas(document.getElementById('singleGameCol'), myGame);
 
@@ -115,6 +120,7 @@ if (showGames) {
     document.getElementById('singleGame').style.display = 'block';
     document.getElementById('onlyTheirGameExplanation').style.display = 'block';
     document.getElementById('singleResult').innerHTML = theirGame.resultString;
+    document.getElementById('singleTitle').innerHTML = "Their game";
 
     addCanvas(document.getElementById('singleGameCol'), theirGame);
 
@@ -210,7 +216,7 @@ document.onkeydown = function(e) {
 
 function shareGame() {
   let button = document.getElementById("shareButton");
-  navigator.clipboard.writeText(window.location.hostname + "/share/?game=" + btoa(localStorage.getItem("userID") + ":" + dateString)).then(() => {
+  navigator.clipboard.writeText(window.location.protocol + "//" + window.location.hostname + "/share/?game=" + btoa(localStorage.getItem("userID") + ":" + dateString)).then(() => {
     var tooltip = new bootstrap.Tooltip(button, {title: "Link copied to clipboard"});
     tooltip.show();
     setTimeout(() => {

@@ -1097,7 +1097,7 @@ if (new URLSearchParams(window.location.search).get("dailygame") == "true") {
 
 function shareGame() {
   let button = document.getElementById("shareButton");
-  navigator.clipboard.writeText(window.location.hostname + "/share/?game=" + btoa(localStorage.getItem("userID") + ":" + localStorage.getItem("mostRecentDailyGame"))).then(() => {
+  navigator.clipboard.writeText(window.location.protocol + "//" + window.location.hostname + "/share/?game=" + btoa(localStorage.getItem("userID") + ":" + localStorage.getItem("mostRecentDailyGame"))).then(() => {
     var tooltip = new bootstrap.Tooltip(button, {title: "Link copied to clipboard"});
     tooltip.show();
     setTimeout(() => {
