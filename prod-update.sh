@@ -6,6 +6,8 @@ echo "Delete the local dist directory..."
 rm -r www/dist
 
 echo "Compiling everything locally..."
+# I'm pretty sure the line below is a security issue
+export NODE_OPTIONS=--openssl-legacy-provider
 cd server && npm run build && cd ..
 
 echo "Killing redis-server and node on remote..."
