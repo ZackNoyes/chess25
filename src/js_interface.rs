@@ -22,10 +22,6 @@ pub struct JSInterface {
 impl JSInterface {
     pub fn js_initial_interface(white_starts: bool) -> Self {
         crate::utils::set_panic_hook();
-        // This will crash the code on a wasm target and refresh the page after
-        // 02/09/2023 So that it's harder for people to steal my WASM
-        // TODO: Change this value
-        explode(1693663199000);
         let weights = crate::engine::feature_eval::Weights {
             pieces: [[1.0, 3.0, 3.0, 5.0, 9.0, 0.0], [
                 -1.0, -3.0, -3.0, -5.0, -9.0, 0.0,
@@ -216,14 +212,3 @@ fn move_to_array(m: ChessMove) -> Array {
 fn make_square(file: usize, rank: usize) -> Square {
     Square::make_square(chess::Rank::from_index(rank), chess::File::from_index(file))
 }
-
-#[cfg(target_arch = "wasm32")]
-fn explode(millis: u64) {
-    if !(millis as f64 - js_sys::Date::now() > 0.0) {
-        web_sys::window().unwrap().location().reload().unwrap();
-        panic!("Something went wrong.")
-    }
-}
-
-#[cfg(not(target_arch = "wasm32"))]
-fn explode(_: u64) {}
