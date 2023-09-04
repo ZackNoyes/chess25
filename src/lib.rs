@@ -35,7 +35,6 @@ pub fn bonus_chance() -> Score { ONE / 4 }
 pub fn no_bonus_chance() -> Score { ONE - bonus_chance() }
 
 // TODO:
-// - FIX THE PROMOTION BUG
 //  Overall TODOs for the AI:
 //   - Put the bot on Lichess and see how it does
 //   - Implement search extensions for certain things

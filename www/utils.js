@@ -52,3 +52,11 @@ const loadImage = piece =>
   });
 
 var imagePromise = Promise.all(PIECES.map(loadImage));
+
+// Used for the promotion options.
+// TODO: Rewrite so that uses the other functions
+export function urlForPiece(piece) {
+  var t = piece.toUpperCase();
+  var c = t == piece ? 'w' : 'b';
+  return '/images/cburnett/' + c + t + '.svg';
+}

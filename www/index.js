@@ -1,5 +1,5 @@
 import { JSInterface } from "random-chess";
-import { drawHistory, getImage } from './utils.js';
+import { drawHistory, getImage, urlForPiece } from './utils.js';
 import {
   BLACK_SQUARE_COLOR,
   WHITE_SQUARE_COLOR,
