@@ -6,8 +6,8 @@ import http from 'http';
 
 const server = (process.env.NODE_ENV === 'production') ?
   https.createServer({
-    key: fs.readFileSync("/etc/letsencrypt/live/zacknoyes.au/privkey.pem"),
-    cert: fs.readFileSync("/etc/letsencrypt/live/zacknoyes.au/fullchain.pem")
+    key: fs.readFileSync("/etc/letsencrypt/live/chess25.zacknoyes.au/privkey.pem"),
+    cert: fs.readFileSync("/etc/letsencrypt/live/chess25.zacknoyes.au/fullchain.pem")
   }, app)
   : http.createServer(app);
 
